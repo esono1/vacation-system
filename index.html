@@ -641,14 +641,18 @@ async function initData(){
     if(snap.exists()){
       data = snap.data();
     } else {
-      // First time: write defaults
       await setDoc(DATA_REF, DEFAULT_DATA);
       data = JSON.parse(JSON.stringify(DEFAULT_DATA));
     }
-    // Migrate missing fields
-    if(!data.extraLeaves) data.extraLeaves=[];
+    // Migrate / ensure all fields exist with correct types
+    if(!Array.isArray(data.employees)) data.employees=[];
+    if(!Array.isArray(data.departments)||!data.departments.length) data.departments=['09-19','12-22','13-23','14-24','16-02'];
+    if(!Array.isArray(data.periods)) data.periods=[];
+    if(!Array.isArray(data.applications)) data.applications=[];
+    if(!Array.isArray(data.extraLeaves)) data.extraLeaves=[];
+    if(!Array.isArray(data.makeupLeaves)) data.makeupLeaves=[];
+    if(!Array.isArray(data.history)) data.history=[];
     if(!data.monthlyQuota) data.monthlyQuota=8;
-    if(!data.makeupLeaves) data.makeupLeaves=[];
     if(!data.history) data.history=[];
 
     hideLoading();
@@ -658,10 +662,16 @@ async function initData(){
     onSnapshot(DATA_REF, (snap)=>{
       if(!snap.exists()) return;
       const remote = snap.data();
-      if(JSON.stringify(remote)===JSON.stringify(data)) return; // no change
+      if(JSON.stringify(remote)===JSON.stringify(data)) return;
       data = remote;
-      if(!data.extraLeaves) data.extraLeaves=[];
-      if(!data.makeupLeaves) data.makeupLeaves=[];
+      if(!Array.isArray(data.employees)) data.employees=[];
+      if(!Array.isArray(data.departments)||!data.departments.length) data.departments=['09-19','12-22','13-23','14-24','16-02'];
+      if(!Array.isArray(data.periods)) data.periods=[];
+      if(!Array.isArray(data.applications)) data.applications=[];
+      if(!Array.isArray(data.extraLeaves)) data.extraLeaves=[];
+      if(!Array.isArray(data.makeupLeaves)) data.makeupLeaves=[];
+      if(!Array.isArray(data.history)) data.history=[];
+      if(!data.monthlyQuota) data.monthlyQuota=8;
       refreshCurrentTab();
       toast('🔄 資料已同步更新');
     });
