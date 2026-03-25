@@ -197,6 +197,8 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
 @media(max-width:700px){.main{padding:13px;}.grid-2,.grid-3{grid-template-columns:1fr;}.tabs{padding:0 10px;}.header{padding:14px 16px;}.mode-btn span{display:none;}}
 </style>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -578,11 +580,8 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
 <div class="toast" id="toast"></div>
 
-<script type="module">
+<script>
 // ══ FIREBASE ══
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
   authDomain: "vacation-system-22655.firebaseapp.com",
@@ -591,9 +590,9 @@ const firebaseConfig = {
   messagingSenderId: "171517523326",
   appId: "1:171517523326:web:4ae4813fbbef7c93d2af2f"
 };
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
-const DATA_REF = doc(db, 'system', 'data');
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const DATA_REF = db.collection('system').doc('data');
 
 const DEFAULT_DATA = {
   employees:[],
@@ -608,87 +607,63 @@ const DEFAULT_DATA = {
 
 // ══ DATA ══
 let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
-let _saving = false;
-let _pendingSave = false;
+let _saving=false, _pendingSave=false;
 
-async function save(){
-  if(_saving){ _pendingSave=true; return; }
+function save(){
+  if(_saving){_pendingSave=true;return;}
   _saving=true;
-  try{
-    await setDoc(DATA_REF, data);
-  }catch(e){
-    console.error('Save failed:', e);
-    toast('⚠ 儲存失敗，請檢查網路', true);
-  }
-  _saving=false;
-  if(_pendingSave){ _pendingSave=false; save(); }
+  DATA_REF.set(data)
+    .then(()=>{ _saving=false; if(_pendingSave){_pendingSave=false;save();} })
+    .catch(e=>{ console.error('Save failed:',e); toast('⚠ 儲存失敗',true); _saving=false; });
 }
 
-// Show loading overlay
 function showLoading(msg='載入中…'){
   document.getElementById('loading-overlay').style.display='flex';
   document.getElementById('loading-msg').textContent=msg;
 }
-function hideLoading(){
-  document.getElementById('loading-overlay').style.display='none';
+function hideLoading(){ document.getElementById('loading-overlay').style.display='none'; }
+
+function migrateData(d){
+  if(!Array.isArray(d.employees)) d.employees=[];
+  if(!Array.isArray(d.departments)||!d.departments.length) d.departments=['09-19','12-22','13-23','14-24','16-02'];
+  if(!Array.isArray(d.periods)) d.periods=[];
+  if(!Array.isArray(d.applications)) d.applications=[];
+  if(!Array.isArray(d.extraLeaves)) d.extraLeaves=[];
+  if(!Array.isArray(d.makeupLeaves)) d.makeupLeaves=[];
+  if(!Array.isArray(d.history)) d.history=[];
+  if(!d.monthlyQuota) d.monthlyQuota=8;
+  return d;
 }
 
-// Load data from Firestore, then set up real-time listener
-async function initData(){
+function initData(){
   showLoading('連線至雲端資料庫…');
-  try {
-    const snap = await getDoc(DATA_REF);
-    if(snap.exists()){
-      data = snap.data();
-    } else {
-      await setDoc(DATA_REF, DEFAULT_DATA);
-      data = JSON.parse(JSON.stringify(DEFAULT_DATA));
-    }
-    // Migrate / ensure all fields exist with correct types
-    if(!Array.isArray(data.employees)) data.employees=[];
-    if(!Array.isArray(data.departments)||!data.departments.length) data.departments=['09-19','12-22','13-23','14-24','16-02'];
-    if(!Array.isArray(data.periods)) data.periods=[];
-    if(!Array.isArray(data.applications)) data.applications=[];
-    if(!Array.isArray(data.extraLeaves)) data.extraLeaves=[];
-    if(!Array.isArray(data.makeupLeaves)) data.makeupLeaves=[];
-    if(!Array.isArray(data.history)) data.history=[];
-    if(!data.monthlyQuota) data.monthlyQuota=8;
-    if(!data.history) data.history=[];
-
-    hideLoading();
-    bootUI();
-
-    // Real-time listener: update local data when another user saves
-    onSnapshot(DATA_REF, (snap)=>{
-      if(!snap.exists()) return;
-      const remote = snap.data();
-      if(JSON.stringify(remote)===JSON.stringify(data)) return;
-      data = remote;
-      if(!Array.isArray(data.employees)) data.employees=[];
-      if(!Array.isArray(data.departments)||!data.departments.length) data.departments=['09-19','12-22','13-23','14-24','16-02'];
-      if(!Array.isArray(data.periods)) data.periods=[];
-      if(!Array.isArray(data.applications)) data.applications=[];
-      if(!Array.isArray(data.extraLeaves)) data.extraLeaves=[];
-      if(!Array.isArray(data.makeupLeaves)) data.makeupLeaves=[];
-      if(!Array.isArray(data.history)) data.history=[];
-      if(!data.monthlyQuota) data.monthlyQuota=8;
-      refreshCurrentTab();
-      toast('🔄 資料已同步更新');
+  DATA_REF.get()
+    .then(snap=>{
+      data = snap.exists ? migrateData(snap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+      if(!snap.exists) DATA_REF.set(DEFAULT_DATA);
+      hideLoading();
+      bootUI();
+      DATA_REF.onSnapshot(snap=>{
+        if(!snap.exists) return;
+        const remote=migrateData(snap.data());
+        if(JSON.stringify(remote)===JSON.stringify(data)) return;
+        data=remote;
+        refreshCurrentTab();
+        toast('🔄 資料已同步更新');
+      });
+    })
+    .catch(e=>{
+      console.error('Init failed:',e);
+      document.getElementById('loading-overlay').style.display='flex';
+      document.getElementById('loading-msg').textContent='⚠ 無法連線，請確認網路後重新整理';
     });
-  } catch(e){
-    console.error('Init failed:', e);
-    hideLoading();
-    document.getElementById('loading-overlay').style.display='flex';
-    document.getElementById('loading-msg').textContent='⚠ 無法連線，請確認網路後重新整理頁面';
-  }
 }
 
 function refreshCurrentTab(){
   const active=document.querySelector('.panel.active');
   if(!active) return;
   const id=active.id.replace('panel-','');
-  const ns=['employees','periods','applications','lottery','extraleave','schedule','history'];
-  if(ns.includes(id)) switchTab(id);
+  if(['employees','periods','applications','lottery','extraleave','schedule','history'].includes(id)) switchTab(id);
 }
 
 // ══ UTILS ══
@@ -2027,25 +2002,8 @@ function refreshElSelects(){
 function bootUI(){
   renderDeptOptions();renderDeptList();renderEmployees();updateStats();
 }
-
-// ══ EXPOSE TO WINDOW (required for type="module") ══
-Object.assign(window,{
-  switchTab,setMode,
-  addDept,removeDept,addEmployee,removeEmployee,clearAllEmployees,
-  buildPeriodSetup,setAllDateType,cycleDateType,applyDefaults,addPeriod,removePeriod,
-  refreshAppSelects,onAppPeriodChange,addApplication,removeApplication,renderApplications,
-  onLotteryPeriodChange,toggleManualMode,runAllLottery,proceedNextSlot,
-  onLotteryShiftChange,onLotteryDayChange,startSingleLottery,
-  drawNext,autoDrawAll,saveCurrentResult,saveAllResults,resetLottery,
-  saveQuota,reviewLeave,deleteLeave,
-  initSchedule,setSchView,renderSchedule,adminMakeup,confirmAdminMakeup,cancelAdminMakeup,
-  renderHistory,clearHistory,closeModal,
-  onSelfPeriodChange,selfSubmit,selfRemove,selfSubmitExtraLeave,selfCancelLeave,
-  selfApplyMakeup,selfCancelMakeup,
-  refreshElSelects,
-});
-
 initData();
+</script>
 </script>
 </body>
 </html>
