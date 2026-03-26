@@ -199,6 +199,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -282,7 +283,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
         <input type="password" id="login-admin-pw" placeholder="輸入密碼" style="width:100%;" onkeydown="if(event.key==='Enter')loginAsAdmin()">
       </div>
       <div id="login-admin-err" style="display:none;margin-bottom:8px;font-size:.76rem;color:var(--red);text-align:center;"></div>
-      <button class="btn btn-primary" style="width:100%;background:var(--surface3);" onclick="loginAsAdmin()">進入管理後台</button>
+      <button class="btn btn-primary" style="width:100%;" onclick="loginAsAdmin()">進入管理後台</button>
     </div>
   </div>
 </div>
@@ -299,7 +300,6 @@ tr:hover td{background:rgba(255,255,255,.018);}
     <button class="mode-btn" id="btn-simulate-emp" onclick="showSimulatePanel()" style="display:none;background:rgba(232,122,74,.12);border-color:rgba(232,122,74,.4);color:var(--accent2);">👁️ 模擬員工</button>
     <button class="mode-btn" id="btn-back-to-admin" onclick="backToAdmin()" style="display:none;background:rgba(74,232,122,.12);border-color:rgba(74,232,122,.4);color:var(--green);">↩ 返回管理員</button>
     <button class="mode-btn" id="btn-export-data" onclick="exportData()" style="display:none;font-size:.62rem;">💾 匯出資料</button>
-    <button class="mode-btn" id="btn-copy-data" onclick="copyDataToClipboard()" style="display:none;font-size:.62rem;">📋 複製資料</button>
     <button class="mode-btn" id="btn-import-data" onclick="triggerImport()" style="display:none;font-size:.62rem;">📂 匯入資料</button>
     <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importData(event)">
     <button class="mode-btn" id="btn-logout" onclick="logout()" style="background:rgba(232,74,74,.12);border-color:rgba(232,74,74,.3);color:var(--red);">🚪 登出</button>
@@ -840,6 +840,7 @@ if(!USE_LOCAL){
   const db = firebase.firestore();
   DATA_REF = db.collection('system').doc('data');
   AUTH_REF  = db.collection('system').doc('auth');
+  window._fbAuth = firebase.auth();
 }
 
 // ── save ──
@@ -875,7 +876,7 @@ function migrateData(d){
 }
 
 // 本地模式超級管理員（僅 Claude 預覽用，密碼可自行修改）
-const LOCAL_SUPER = {username:'spadmin', password:'0629'};
+const LOCAL_SUPER = {username:'yuso777', password:'0629'};
 // 雲端超級管理員（從 Firestore auth 文件載入，程式碼裡無密碼）
 let _cloudSuper = null;
 function getSuperAdmin(){ return USE_LOCAL ? LOCAL_SUPER : _cloudSuper; }
@@ -889,7 +890,10 @@ function initData(){
     return;
   }
   showLoading('連線至雲端資料庫…');
-  Promise.all([DATA_REF.get(), AUTH_REF.get()])
+  const _authReady=window._fbAuth
+    ? window._fbAuth.signInAnonymously().catch(()=>Promise.resolve())
+    : Promise.resolve();
+  _authReady.then(()=>Promise.all([DATA_REF.get(), AUTH_REF.get()]))
     .then(([dataSnap, authSnap])=>{
       data = dataSnap.exists ? migrateData(dataSnap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
       if(!dataSnap.exists) DATA_REF.set(DEFAULT_DATA);
@@ -994,6 +998,8 @@ function _enterSelfView(eid){
   document.getElementById('main-header').style.display='flex';
   document.getElementById('header-user-info').textContent=`👤 ${emp.name}（${emp.dept}）`;
   document.getElementById('btn-change-pin').style.display='inline-block';
+  document.getElementById('btn-export-data').style.display='inline-block';
+  document.getElementById('btn-import-data').style.display='inline-block';
   if(window._isLocalMode)document.getElementById('local-mode-banner').style.display='block';
   document.getElementById('admin-view').style.display='none';
   document.getElementById('self-view').style.display='block';
@@ -1102,9 +1108,8 @@ function loginAsAdmin(){
   document.getElementById('tab-accounts').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-simulate-emp').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-back-to-admin').style.display='none';
-  document.getElementById('btn-export-data').style.display=role==='superadmin'?'inline-block':'none';
-  document.getElementById('btn-copy-data').style.display=role==='superadmin'?'inline-block':'none';
-  document.getElementById('btn-import-data').style.display=role==='superadmin'?'inline-block':'none';
+  document.getElementById('btn-export-data').style.display='inline-block';
+  document.getElementById('btn-import-data').style.display='inline-block';
   renderDeptOptions();renderDeptList();renderEmployees();updateStats();
 }
 
@@ -1116,7 +1121,6 @@ function logout(){
   document.getElementById('btn-simulate-emp').style.display='none';
   document.getElementById('btn-back-to-admin').style.display='none';
   document.getElementById('btn-export-data').style.display='none';
-  document.getElementById('btn-copy-data').style.display='none';
   document.getElementById('btn-import-data').style.display='none';
   showLoginScreen();
 }
@@ -2826,22 +2830,6 @@ function resetEmpPin(){
 }
 
 // ══ 資料匯出 / 匯入 ══
-function copyDataToClipboard(){
-  const json=JSON.stringify(data);
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(json)
-      .then(()=>toast('✓ 資料已複製，可貼入匯入框'))
-      .catch(()=>fallbackCopy(json));
-  } else { fallbackCopy(json); }
-}
-function fallbackCopy(text){
-  const ta=document.createElement('textarea');
-  ta.value=text;ta.style.position='fixed';ta.style.opacity='0';
-  document.body.appendChild(ta);ta.focus();ta.select();
-  try{ document.execCommand('copy');toast('✓ 資料已複製，可貼入匯入框'); }
-  catch(e){ toast('❌ 複製失敗，請改用匯出功能',true); }
-  document.body.removeChild(ta);
-}
 function exportData(){
   const json=JSON.stringify(data,null,2);
   const blob=new Blob([json],{type:'application/json'});
@@ -2854,43 +2842,8 @@ function exportData(){
   toast('✓ 資料已匯出');
 }
 function triggerImport(){
-  document.getElementById('modal-title').textContent='匯入資料';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="margin-bottom:12px;font-size:.82rem;color:var(--text-dim);">選擇匯入方式：</div>
-    <div style="display:flex;flex-direction:column;gap:8px;">
-      <button class="btn btn-primary" onclick="document.getElementById('import-file-input').value='';document.getElementById('import-file-input').click();closeModal();" style="width:100%;">📂 選擇 JSON 檔案</button>
-      <button class="btn btn-ghost" onclick="closeModal();showPasteImport();" style="width:100%;">📋 貼上複製的資料</button>
-    </div>`;
-  document.getElementById('modal-confirm').style.display='none';
-  document.getElementById('modal').classList.add('show');
-}
-function showPasteImport(){
-  document.getElementById('modal-title').textContent='貼上資料匯入';
-  document.getElementById('modal-msg').innerHTML=`
-    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:8px;">將複製的資料貼入下方，然後按「確認匯入」：</div>
-    <textarea id="paste-import-input" placeholder="貼上資料..." style="width:100%;height:120px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px;font-size:.72rem;font-family:'Space Mono',monospace;resize:vertical;outline:none;"></textarea>
-    <div id="paste-import-err" style="display:none;font-size:.74rem;color:var(--red);margin-top:6px;"></div>`;
-  document.getElementById('modal-confirm').textContent='確認匯入';
-  document.getElementById('modal-confirm').style.display='';
-  document.getElementById('modal').classList.add('show');
-  _mcb=()=>{
-    const text=document.getElementById('paste-import-input').value.trim();
-    const err=document.getElementById('paste-import-err');
-    if(!text){err.textContent='請貼上資料';err.style.display='block';return false;}
-    try{
-      const imported=JSON.parse(text);
-      if(!Array.isArray(imported.employees)||!Array.isArray(imported.periods)){
-        err.textContent='格式不正確，請確認資料來源';err.style.display='block';return false;
-      }
-      data=migrateData(imported);save();
-      renderDeptOptions();renderDeptList();renderEmployees();updateStats();
-      if(document.getElementById('panel-applications').classList.contains('active')){refreshAppSelects();renderApplications();}
-      if(document.getElementById('panel-schedule').classList.contains('active'))initSchedule();
-      if(document.getElementById('panel-history').classList.contains('active'))renderHistory();
-      if(document.getElementById('panel-extraleave').classList.contains('active')){refreshElSelects();renderExtraLeave();}
-      toast('✓ 資料已成功匯入');
-    }catch(e){err.textContent='無法解析資料，格式有誤';err.style.display='block';return false;}
-  };
+  document.getElementById('import-file-input').value='';
+  document.getElementById('import-file-input').click();
 }
 function importData(event){
   const file=event.target.files[0];
@@ -2941,7 +2894,6 @@ function bootUI(){
     document.getElementById('btn-simulate-emp').style.display='inline-block';
     document.getElementById('btn-back-to-admin').style.display='none';
     document.getElementById('btn-export-data').style.display='inline-block';
-    document.getElementById('btn-copy-data').style.display='inline-block';
     document.getElementById('btn-import-data').style.display='inline-block';
     document.getElementById('admin-view').style.display='block';
     renderDeptOptions();renderDeptList();renderEmployees();updateStats();
