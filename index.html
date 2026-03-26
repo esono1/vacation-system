@@ -199,7 +199,6 @@ tr:hover td{background:rgba(255,255,255,.018);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -297,6 +296,11 @@ tr:hover td{background:rgba(255,255,255,.018);}
   </div>
   <div class="header-mode">
     <button class="mode-btn" id="btn-change-pin" onclick="showChangePinModal()" style="display:none;margin-right:8px;font-size:.62rem;">🔑 修改 PIN</button>
+    <button class="mode-btn" id="btn-simulate-emp" onclick="showSimulatePanel()" style="display:none;background:rgba(232,122,74,.12);border-color:rgba(232,122,74,.4);color:var(--accent2);">👁️ 模擬員工</button>
+    <button class="mode-btn" id="btn-back-to-admin" onclick="backToAdmin()" style="display:none;background:rgba(74,232,122,.12);border-color:rgba(74,232,122,.4);color:var(--green);">↩ 返回管理員</button>
+    <button class="mode-btn" id="btn-export-data" onclick="exportData()" style="display:none;font-size:.62rem;">💾 匯出資料</button>
+    <button class="mode-btn" id="btn-import-data" onclick="triggerImport()" style="display:none;font-size:.62rem;">📂 匯入資料</button>
+    <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importData(event)">
     <button class="mode-btn" id="btn-logout" onclick="logout()" style="background:rgba(232,74,74,.12);border-color:rgba(232,74,74,.3);color:var(--red);">🚪 登出</button>
   </div>
 </div>
@@ -766,6 +770,26 @@ tr:hover td{background:rgba(255,255,255,.018);}
     </div>
   </div>
 </div>
+<!-- 模擬員工模式提示 -->
+<div id="simulate-banner" style="display:none;background:rgba(232,122,74,.15);border-bottom:2px solid rgba(232,122,74,.5);padding:8px 20px;text-align:center;font-family:'Space Mono',monospace;font-size:.7rem;color:var(--accent2);letter-spacing:.06em;">
+  👁️ 管理員模擬模式：目前模擬 <span id="simulate-emp-name" style="font-weight:700;color:#fff;"></span> 的員工介面，可操作所有員工資料
+</div>
+<!-- 模擬員工選擇面板 -->
+<div id="simulate-panel" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:300;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px;max-width:420px;width:90%;">
+    <h2 style="font-size:.96rem;margin-bottom:6px;">👁️ 模擬員工介面</h2>
+    <p style="color:var(--text-dim);font-size:.8rem;margin-bottom:16px;line-height:1.7;">選擇要模擬的員工，以該員工視角進入員工介面。管理員身份不受操作限制。</p>
+    <div class="field" style="margin-bottom:16px;">
+      <label>選擇員工</label>
+      <select id="simulate-emp-select" style="width:100%;"><option value="">-- 請選擇員工 --</option></select>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" style="flex:1;" onclick="startSimulate()">進入模擬</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="closeSimulatePanel()">取消</button>
+    </div>
+  </div>
+</div>
+
 <!-- 本地模式提示 -->
 <div id="local-mode-banner" style="display:none;background:rgba(232,200,74,.12);border-bottom:1px solid rgba(232,200,74,.3);padding:8px 20px;text-align:center;font-family:'Space Mono',monospace;font-size:.7rem;color:var(--accent);letter-spacing:.06em;">
   🖥️ 本地測試模式 — 資料僅存在此瀏覽器，不會同步至雲端
@@ -815,8 +839,6 @@ if(!USE_LOCAL){
   const db = firebase.firestore();
   DATA_REF = db.collection('system').doc('data');
   AUTH_REF  = db.collection('system').doc('auth');
-  // 初始化 Firebase Auth（供匿名登入使用）
-  window._fbAuth = firebase.auth();
 }
 
 // ── save ──
@@ -866,11 +888,7 @@ function initData(){
     return;
   }
   showLoading('連線至雲端資料庫…');
-  // 先以匿名身份登入，讓 Firestore 規則的 request.auth != null 成立
-  const _authReady = window._fbAuth
-    ? window._fbAuth.signInAnonymously().catch(()=>Promise.resolve())
-    : Promise.resolve();
-  _authReady.then(()=>Promise.all([DATA_REF.get(), AUTH_REF.get()]))
+  Promise.all([DATA_REF.get(), AUTH_REF.get()])
     .then(([dataSnap, authSnap])=>{
       data = dataSnap.exists ? migrateData(dataSnap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
       if(!dataSnap.exists) DATA_REF.set(DEFAULT_DATA);
@@ -975,6 +993,8 @@ function _enterSelfView(eid){
   document.getElementById('main-header').style.display='flex';
   document.getElementById('header-user-info').textContent=`👤 ${emp.name}（${emp.dept}）`;
   document.getElementById('btn-change-pin').style.display='inline-block';
+  document.getElementById('btn-export-data').style.display='inline-block';
+  document.getElementById('btn-import-data').style.display='inline-block';
   if(window._isLocalMode)document.getElementById('local-mode-banner').style.display='block';
   document.getElementById('admin-view').style.display='none';
   document.getElementById('self-view').style.display='block';
@@ -1081,14 +1101,88 @@ function loginAsAdmin(){
   // 超級管理員才顯示帳號管理分頁
   document.getElementById('btn-change-pin').style.display='none';
   document.getElementById('tab-accounts').style.display=role==='superadmin'?'inline-block':'none';
+  document.getElementById('btn-simulate-emp').style.display=role==='superadmin'?'inline-block':'none';
+  document.getElementById('btn-back-to-admin').style.display='none';
+  document.getElementById('btn-export-data').style.display='inline-block';
+  document.getElementById('btn-import-data').style.display='inline-block';
   renderDeptOptions();renderDeptList();renderEmployees();updateStats();
 }
 
 function logout(){
-  _currentRole=null;_currentEmpId=null;_currentAdminUser=null;
+  _currentRole=null;_currentEmpId=null;_currentAdminUser=null;_isSimulating=false;
   document.getElementById('local-mode-banner').style.display='none';
+  document.getElementById('simulate-banner').style.display='none';
   document.getElementById('btn-change-pin').style.display='none';
+  document.getElementById('btn-simulate-emp').style.display='none';
+  document.getElementById('btn-back-to-admin').style.display='none';
+  document.getElementById('btn-export-data').style.display='none';
+  document.getElementById('btn-import-data').style.display='none';
   showLoginScreen();
+}
+
+// ══ 超級管理員模擬員工模式 ══
+let _isSimulating = false;
+let _savedAdminRole = null;
+let _savedAdminUser = null;
+
+function showSimulatePanel(){
+  if(_currentRole!=='superadmin')return;
+  const sel=document.getElementById('simulate-emp-select');
+  sel.innerHTML='<option value="">-- 請選擇員工 --</option>';
+  data.employees.forEach(e=>{
+    const o=document.createElement('option');o.value=e.id;
+    o.textContent=`${e.name}（${e.dept} / ${e.store||'竹北店'}）`;
+    sel.appendChild(o);
+  });
+  document.getElementById('simulate-panel').style.display='flex';
+}
+function closeSimulatePanel(){
+  document.getElementById('simulate-panel').style.display='none';
+}
+function startSimulate(){
+  const eid=parseInt(document.getElementById('simulate-emp-select').value);
+  const emp=data.employees.find(e=>e.id===eid);
+  if(!emp)return toast('請選擇員工',true);
+  closeSimulatePanel();
+  _isSimulating=true;
+  _savedAdminRole=_currentRole;
+  _savedAdminUser=_currentAdminUser;
+  _currentEmpId=eid;
+  // 保留 superadmin role，讓安全驗證不擋
+  document.getElementById('main-header').style.display='flex';
+  document.getElementById('header-user-info').textContent=`👁️ 模擬中：${emp.name}（${emp.dept}）`;
+  document.getElementById('btn-simulate-emp').style.display='none';
+  document.getElementById('btn-back-to-admin').style.display='inline-block';
+  document.getElementById('btn-change-pin').style.display='none';
+  document.getElementById('simulate-banner').style.display='block';
+  document.getElementById('simulate-emp-name').textContent=`${emp.name}（${emp.dept}）`;
+  document.getElementById('admin-view').style.display='none';
+  document.getElementById('self-view').style.display='block';
+  initSelfView();
+  setTimeout(()=>{
+    const pSel=document.getElementById('self-period');
+    if(pSel&&pSel.options.length>1){pSel.selectedIndex=1;onSelfPeriodChange();}
+    setTimeout(()=>{
+      const eSel=document.getElementById('self-emp');
+      if(eSel){for(let i=0;i<eSel.options.length;i++){if(parseInt(eSel.options[i].value)===eid){eSel.selectedIndex=i;break;}}onSelfEmpChange();}
+    },100);
+  },100);
+  toast(`✓ 現在模擬 ${emp.name} 的員工介面`);
+}
+function backToAdmin(){
+  if(!_isSimulating)return;
+  _isSimulating=false;
+  _currentEmpId=null;
+  _currentRole=_savedAdminRole;
+  _currentAdminUser=_savedAdminUser;
+  document.getElementById('simulate-banner').style.display='none';
+  document.getElementById('btn-back-to-admin').style.display='none';
+  document.getElementById('btn-simulate-emp').style.display='inline-block';
+  document.getElementById('header-user-info').textContent=`🔧 超級管理員${window._isLocalMode?'（本地測試）':''}`;
+  document.getElementById('self-view').style.display='none';
+  document.getElementById('admin-view').style.display='block';
+  renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+  toast('✓ 已返回管理員介面');
 }
 
 function setMode(m){
@@ -1697,15 +1791,37 @@ function initSelfView(){
   document.getElementById('self-emp').innerHTML='<option value="">-- 先選假期 --</option>';
   document.getElementById('self-dates-section').style.display='none';
   document.getElementById('self-my-apps').style.display='none';
+  // 員工登入 或 管理員模擬模式 → 顯示姓名標籤，不允許切換
+  if((_currentRole==='employee'||_isSimulating)&&_currentEmpId){
+    const emp=data.employees.find(e=>e.id===_currentEmpId);
+    if(emp){
+      document.getElementById('self-emp-field').style.display='none';
+      document.getElementById('self-emp-display').style.display='block';
+      document.getElementById('self-emp-name-label').textContent=`${emp.name}（${emp.dept}）`;
+    }
+  }
 }
 function onSelfPeriodChange(){
   const pid=parseInt(document.getElementById('self-period').value);
   const p=data.periods.find(x=>x.id===pid);
   const empSel=document.getElementById('self-emp');
-  empSel.innerHTML='<option value="">-- 選擇您的姓名 --</option>';
   document.getElementById('self-dates-section').style.display='none';
   document.getElementById('self-my-apps').style.display='none';
   if(!p)return;
+  // 員工模式 或 管理員模擬模式：固定為登入者，不開放選擇其他人
+  if((_currentRole==='employee'||_isSimulating)&&_currentEmpId){
+    const emp=data.employees.find(e=>e.id===_currentEmpId);
+    if(!emp)return;
+    if(p.genderRestrict&&(emp.gender||'male')!==p.genderRestrict)
+      return toast(`此假期僅開放${p.genderRestrict==='male'?'男性':'女性'}申請`,true);
+    if(p.storeRestrict&&(emp.store||'竹北店')!==p.storeRestrict&&_currentRole==='employee')
+      return toast(`此假期僅開放${p.storeRestrict}員工申請`,true);
+    empSel.innerHTML=`<option value="${emp.id}">${emp.name}（${emp.dept}）</option>`;
+    empSel.value=emp.id;
+    onSelfEmpChange();
+    return;
+  }
+  // 管理員預覽模式：保留原本下拉邏輯
   const eligibleEmps=data.employees.filter(e=>{
     if(p.genderRestrict&&(e.gender||'male')!==p.genderRestrict) return false;
     if(p.storeRestrict&&(e.store||'竹北店')!==p.storeRestrict) return false;
@@ -2708,6 +2824,50 @@ function resetEmpPin(){
   });
 }
 
+// ══ 資料匯出 / 匯入 ══
+function exportData(){
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const ts=new Date().toISOString().slice(0,16).replace('T','_').replace(':','-');
+  a.href=url; a.download=`vacLottery_backup_${ts}.json`;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+  toast('✓ 資料已匯出');
+}
+function triggerImport(){
+  document.getElementById('import-file-input').value='';
+  document.getElementById('import-file-input').click();
+}
+function importData(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const imported=JSON.parse(e.target.result);
+      // 基本驗證
+      if(!Array.isArray(imported.employees)||!Array.isArray(imported.periods))
+        return toast('❌ 檔案格式不正確',true);
+      showModal('確認匯入',`確定要匯入「${file.name}」？目前所有資料將被覆蓋。`,()=>{
+        data=migrateData(imported);
+        save();
+        // 重新渲染目前畫面
+        renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+        if(document.getElementById('panel-applications').classList.contains('active')){refreshAppSelects();renderApplications();}
+        if(document.getElementById('panel-schedule').classList.contains('active'))initSchedule();
+        if(document.getElementById('panel-history').classList.contains('active'))renderHistory();
+        if(document.getElementById('panel-extraleave').classList.contains('active')){refreshElSelects();renderExtraLeave();}
+        toast('✓ 資料已成功匯入');
+      });
+    }catch(err){
+      toast('❌ 無法解析檔案，請確認為正確的 JSON 格式',true);
+    }
+  };
+  reader.readAsText(file);
+}
+
 // ══ INIT ══
 function refreshElSelects(){
   const fs=document.getElementById('el-filter-shift');
@@ -2726,6 +2886,10 @@ function bootUI(){
     document.getElementById('btn-change-pin').style.display='none';
     document.getElementById('local-mode-banner').style.display='block';
     document.getElementById('tab-accounts').style.display='inline-block';
+    document.getElementById('btn-simulate-emp').style.display='inline-block';
+    document.getElementById('btn-back-to-admin').style.display='none';
+    document.getElementById('btn-export-data').style.display='inline-block';
+    document.getElementById('btn-import-data').style.display='inline-block';
     document.getElementById('admin-view').style.display='block';
     renderDeptOptions();renderDeptList();renderEmployees();updateStats();
   } else {
