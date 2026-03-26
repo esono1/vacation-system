@@ -199,6 +199,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -839,6 +840,7 @@ if(!USE_LOCAL){
   const db = firebase.firestore();
   DATA_REF = db.collection('system').doc('data');
   AUTH_REF  = db.collection('system').doc('auth');
+  window._fbAuth = firebase.auth();
 }
 
 // ── save ──
@@ -888,7 +890,10 @@ function initData(){
     return;
   }
   showLoading('連線至雲端資料庫…');
-  Promise.all([DATA_REF.get(), AUTH_REF.get()])
+  const _authReady=window._fbAuth
+    ? window._fbAuth.signInAnonymously().catch(()=>Promise.resolve())
+    : Promise.resolve();
+  _authReady.then(()=>Promise.all([DATA_REF.get(), AUTH_REF.get()]))
     .then(([dataSnap, authSnap])=>{
       data = dataSnap.exists ? migrateData(dataSnap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
       if(!dataSnap.exists) DATA_REF.set(DEFAULT_DATA);
