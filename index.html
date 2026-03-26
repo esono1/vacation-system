@@ -202,29 +202,115 @@ tr:hover td{background:rgba(255,255,255,.018);}
 </head>
 <body>
 
+<!-- ══ FIRST-TIME SETUP ══ -->
+<div id="setup-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:9000;align-items:center;justify-content:center;overflow-y:auto;">
+  <div style="width:100%;max-width:400px;padding:24px 20px;">
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:2.5rem;margin-bottom:8px;">🎴</div>
+      <div style="font-size:1.1rem;font-weight:700;margin-bottom:6px;">首次設定</div>
+      <div style="font-size:.78rem;color:var(--text-dim);line-height:1.6;">請設定超級管理員帳號。<br>密碼將存入 Firestore，程式碼中不含任何密碼。</div>
+    </div>
+    <div class="card">
+      <div class="field"><label>帳號</label>
+        <input type="text" id="setup-user" placeholder="自訂帳號" style="width:100%;" onkeydown="if(event.key==='Enter')document.getElementById('setup-pw').focus()">
+      </div>
+      <div class="field"><label>密碼</label>
+        <input type="password" id="setup-pw" placeholder="至少4個字元" style="width:100%;" onkeydown="if(event.key==='Enter')document.getElementById('setup-pw2').focus()">
+      </div>
+      <div class="field" style="margin-bottom:12px;"><label>確認密碼</label>
+        <input type="password" id="setup-pw2" placeholder="再次輸入" style="width:100%;" onkeydown="if(event.key==='Enter')submitSetup()">
+      </div>
+      <div id="setup-err" style="display:none;margin-bottom:10px;font-size:.76rem;color:var(--red);text-align:center;"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="submitSetup()">完成設定</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ LOGIN SCREEN ══ -->
+<div id="login-screen" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:8000;align-items:center;justify-content:center;overflow-y:auto;">
+  <div style="width:100%;max-width:420px;padding:24px 20px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:2.5rem;margin-bottom:10px;">🎴</div>
+      <div style="font-size:1.2rem;font-weight:700;margin-bottom:4px;">假期抽籤系統</div>
+      <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text-dim);">VACATION LOTTERY SYSTEM</div>
+    </div>
+
+    <!-- 員工入口 -->
+    <div class="card" style="margin-bottom:14px;">
+      <div class="section-title" style="margin-bottom:12px;">👤 員工自助登入</div>
+      <div class="field" style="margin-bottom:10px;"><label>姓名</label>
+        <select id="login-emp-select" onchange="onLoginEmpChange()" style="width:100%;"><option value="">-- 請選擇 --</option></select>
+      </div>
+
+      <!-- 一般登入（已設定 PIN）-->
+      <div id="login-emp-normal" style="display:none;">
+        <div class="field" style="margin-bottom:10px;">
+          <label>PIN 碼</label>
+          <input type="password" id="login-emp-pin" placeholder="輸入 PIN 碼" style="width:100%;"
+            onkeydown="if(event.key==='Enter')loginAsEmployee()">
+        </div>
+      </div>
+
+      <!-- 首次設定 PIN -->
+      <div id="login-emp-setup" style="display:none;">
+        <div style="background:rgba(74,232,122,.08);border:1px solid rgba(74,232,122,.2);border-radius:var(--radius);padding:10px 13px;margin-bottom:12px;font-size:.78rem;color:var(--green);">
+          👋 首次登入，請設定您的 PIN 碼
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>設定 PIN 碼</label>
+          <input type="password" id="login-emp-pin-new" placeholder="自訂 PIN 碼" style="width:100%;"
+            onkeydown="if(event.key==='Enter')document.getElementById('login-emp-pin-confirm').focus()">
+        </div>
+        <div class="field" style="margin-bottom:10px;">
+          <label>確認 PIN 碼</label>
+          <input type="password" id="login-emp-pin-confirm" placeholder="再次輸入" style="width:100%;"
+            onkeydown="if(event.key==='Enter')loginAsEmployee()">
+        </div>
+      </div>
+
+      <div id="login-emp-err" style="display:none;margin-bottom:8px;font-size:.76rem;color:var(--red);text-align:center;"></div>
+      <button class="btn btn-primary" style="width:100%;" id="login-emp-btn" onclick="loginAsEmployee()">進入員工系統</button>
+    </div>
+
+    <!-- 管理員入口 -->
+    <div class="card">
+      <div class="section-title" style="margin-bottom:12px;">🔧 管理員登入</div>
+      <div class="field" style="margin-bottom:10px;"><label>帳號</label>
+        <input type="text" id="login-admin-user" placeholder="輸入帳號" style="width:100%;" onkeydown="if(event.key==='Enter')document.getElementById('login-admin-pw').focus()">
+      </div>
+      <div class="field" style="margin-bottom:10px;"><label>密碼</label>
+        <input type="password" id="login-admin-pw" placeholder="輸入密碼" style="width:100%;" onkeydown="if(event.key==='Enter')loginAsAdmin()">
+      </div>
+      <div id="login-admin-err" style="display:none;margin-bottom:8px;font-size:.76rem;color:var(--red);text-align:center;"></div>
+      <button class="btn btn-primary" style="width:100%;background:var(--surface3);" onclick="loginAsAdmin()">進入管理後台</button>
+    </div>
+  </div>
+</div>
+
 <!-- ══ HEADER ══ -->
-<div class="header">
+<div class="header" id="main-header" style="display:none;">
   <div class="header-icon">🎴</div>
   <div>
     <div class="header-title">假期抽籤系統</div>
-    <div class="header-sub">VACATION LOTTERY SYSTEM</div>
+    <div class="header-sub" id="header-user-info">VACATION LOTTERY SYSTEM</div>
   </div>
   <div class="header-mode">
-    <button class="mode-btn active" id="mode-admin-btn" onclick="setMode('admin')">🔧 <span>管理員</span></button>
-    <button class="mode-btn" id="mode-self-btn" onclick="setMode('self')">👤 <span>員工自助</span></button>
+    <button class="mode-btn" id="btn-change-pin" onclick="showChangePinModal()" style="display:none;margin-right:8px;font-size:.62rem;">🔑 修改 PIN</button>
+    <button class="mode-btn" id="btn-logout" onclick="logout()" style="background:rgba(232,74,74,.12);border-color:rgba(232,74,74,.3);color:var(--red);">🚪 登出</button>
   </div>
 </div>
 
 <!-- ══ ADMIN VIEW ══ -->
-<div id="admin-view">
+<div id="admin-view" style="display:none;">
   <div class="tabs">
     <button class="tab active" onclick="switchTab('employees')">👤 員工管理</button>
     <button class="tab" onclick="switchTab('periods')">📅 假期設定</button>
     <button class="tab" onclick="switchTab('applications')">✍️ 排假申請</button>
     <button class="tab" onclick="switchTab('lottery')">🎲 抽籤</button>
-    <button class="tab" onclick="switchTab('extraleave')">🏖️ 額外請假</button>
+    <button class="tab" onclick="switchTab('extraleave')">🏖️ 額外請假管理</button>
     <button class="tab" onclick="switchTab('schedule')">📊 假表</button>
     <button class="tab" onclick="switchTab('history')">📋 歷史紀錄</button>
+    <button class="tab" id="tab-accounts" style="display:none;" onclick="switchTab('accounts')">🔑 帳號管理</button>
   </div>
   <div class="main">
 
@@ -236,6 +322,18 @@ tr:hover td{background:rgba(255,255,255,.018);}
           <div class="section-title">新增員工</div>
           <div class="field"><label>姓名</label><input type="text" id="emp-name" placeholder="e.g. 王小明"></div>
           <div class="field"><label>班別</label><select id="emp-dept"><option value="">-- 選擇班別 --</option></select></div>
+          <div class="field"><label>店別</label>
+            <select id="emp-store" style="width:100%;">
+              <option value="竹北店">竹北店</option>
+              <option value="關新店">關新店</option>
+            </select>
+          </div>
+          <div class="field"><label>性別</label>
+            <div style="display:flex;gap:12px;padding:6px 0;">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;"><input type="radio" name="emp-gender" value="male" checked> 男</label>
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.84rem;"><input type="radio" name="emp-gender" value="female"> 女</label>
+            </div>
+          </div>
           <button class="btn btn-primary" onclick="addEmployee()">新增員工</button>
         </div>
         <div class="card">
@@ -264,7 +362,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
             <button class="btn btn-ghost" style="padding:4px 10px;font-size:.6rem;" onclick="clearAllEmployees()">清除全部</button>
           </div>
         </div>
-        <table><thead><tr><th>#</th><th>姓名</th><th>班別</th><th>操作</th></tr></thead>
+        <table><thead><tr><th>#</th><th>姓名</th><th>性別</th><th>店別</th><th>班別</th><th>操作</th></tr></thead>
         <tbody id="emp-table"><tr><td colspan="4" class="empty"><div class="empty-icon">👥</div>尚未新增員工</td></tr></tbody></table>
       </div>
     </div>
@@ -277,7 +375,23 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
         <!-- Step 1: 基本資訊 -->
         <div class="grid-2" style="margin-bottom:13px;">
-          <div class="field"><label>假期名稱</label><input type="text" id="period-name" placeholder="e.g. 春節假期 2026"></div>
+          <div>
+            <div class="field"><label>假期名稱</label><input type="text" id="period-name" placeholder="e.g. 春節假期 2026"></div>
+            <div class="field"><label>開放性別</label>
+              <select id="period-gender" style="width:100%;">
+                <option value="">全部（男女皆可）</option>
+                <option value="male">僅限男性</option>
+                <option value="female">僅限女性</option>
+              </select>
+            </div>
+            <div class="field"><label>開放店別</label>
+              <select id="period-store" style="width:100%;">
+                <option value="">全部店別</option>
+                <option value="竹北店">僅限竹北店</option>
+                <option value="關新店">僅限關新店</option>
+              </select>
+            </div>
+          </div>
           <div style="display:flex;gap:9px;">
             <div class="field" style="flex:1"><label>開始日期</label><input type="date" id="period-start" onchange="buildPeriodSetup()"></div>
             <div class="field" style="flex:1"><label>結束日期</label><input type="date" id="period-end" onchange="buildPeriodSetup()"></div>
@@ -323,9 +437,11 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
     <!-- 排假申請（管理員） -->
     <div id="panel-applications" class="panel">
-      <div class="section-title">排假申請管理</div>
+      <div class="section-title">排假申請管理（每月上限 <span id="app-quota-display" style="color:var(--accent);">8</span> 天）</div>
+
+      <!-- 代排假 -->
       <div class="card">
-        <div class="section-title">代為新增申請</div>
+        <div class="section-title">代為新增排假申請</div>
         <div class="grid-2">
           <div>
             <div class="field"><label>選擇假期</label>
@@ -341,15 +457,49 @@ tr:hover td{background:rgba(255,255,255,.018);}
             </div>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addApplication()">新增申請</button>
+        <button class="btn btn-primary" onclick="addApplication()">新增排假申請</button>
       </div>
+
+      <!-- 代請假（額外請假） -->
       <div class="card">
-        <div class="flex-between">
-          <div class="section-title" style="margin-bottom:0">申請總覽</div>
-          <div style="display:flex;gap:7px;">
-            <select id="app-filter-period" onchange="renderApplications()" style="width:145px;padding:5px 9px;font-size:.72rem;"><option value="">全部假期</option></select>
-            <select id="app-filter-shift" onchange="renderApplications()" style="width:105px;padding:5px 9px;font-size:.72rem;"><option value="">全部班別</option></select>
+        <div class="section-title">代為新增額外請假</div>
+        <div class="grid-2">
+          <div>
+            <div class="field"><label>選擇員工</label>
+              <select id="proxy-el-emp" onchange="onProxyElEmpChange()"><option value="">-- 選擇員工 --</option></select>
+            </div>
+            <div class="field"><label>請假日期</label>
+              <input type="date" id="proxy-el-date">
+            </div>
+            <div class="field"><label>請假原因（選填）</label>
+              <input type="text" id="proxy-el-reason" placeholder="例：家庭事由">
+            </div>
           </div>
+          <div>
+            <div id="proxy-el-quota-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:.82rem;color:var(--text-dim);">
+              請先選擇員工
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" onclick="addProxyExtraLeave()">新增額外請假</button>
+      </div>
+
+      <!-- 申請總覽 -->
+      <div class="card">
+        <div class="section-title" style="margin-bottom:10px;">排假申請總覽</div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;">
+          <select id="app-filter-period" onchange="renderApplications()" style="flex:1;min-width:130px;padding:5px 9px;font-size:.72rem;"><option value="">全部假期</option></select>
+          <select id="app-filter-shift" onchange="renderApplications()" style="flex:1;min-width:100px;padding:5px 9px;font-size:.72rem;"><option value="">全部班別</option></select>
+          <select id="app-filter-gender" onchange="renderApplications()" style="flex:1;min-width:90px;padding:5px 9px;font-size:.72rem;">
+            <option value="">全部性別</option>
+            <option value="male">男</option>
+            <option value="female">女</option>
+          </select>
+          <select id="app-filter-store" onchange="renderApplications()" style="flex:1;min-width:90px;padding:5px 9px;font-size:.72rem;">
+            <option value="">全部店別</option>
+            <option value="竹北店">竹北店</option>
+            <option value="關新店">關新店</option>
+          </select>
         </div>
         <div id="app-overview"></div>
       </div>
@@ -425,17 +575,17 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
     <!-- 額外請假 -->
     <div id="panel-extraleave" class="panel">
-      <div class="section-title">額外請假管理</div>
+      <div class="section-title">額外請假管理（排假8天額度以外）</div>
       <div class="grid-2">
         <div class="card">
-          <div class="section-title">每月休假額度設定</div>
-          <div class="field"><label>每人每月基本天數</label>
+          <div class="section-title">排假天數額度設定</div>
+          <div class="field"><label>每人每月排假天數上限</label>
             <div style="display:flex;gap:8px;align-items:center;">
               <input type="number" id="monthly-quota" min="1" value="8" style="width:80px;">
               <button class="btn btn-primary" style="white-space:nowrap;" onclick="saveQuota()">儲存設定</button>
             </div>
           </div>
-          <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);">目前設定：每人每月 <span id="quota-display" style="color:var(--accent);font-weight:700;">8</span> 天</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);">目前設定：每人每月排假上限 <span id="quota-display" style="color:var(--accent);font-weight:700;">8</span> 天（不含額外請假）</div>
         </div>
         <div class="card">
           <div class="section-title" style="margin-bottom:13px;">本月統計</div>
@@ -474,6 +624,20 @@ tr:hover td{background:rgba(255,255,255,.018);}
           <div class="field" style="margin-bottom:0;"><label>選擇班別</label>
             <select id="sch-shift" onchange="renderSchedule()" style="min-width:120px;"><option value="">全部班別</option></select>
           </div>
+          <div class="field" style="margin-bottom:0;"><label>性別</label>
+            <select id="sch-gender" onchange="renderSchedule()" style="min-width:100px;">
+              <option value="">全部</option>
+              <option value="male">男</option>
+              <option value="female">女</option>
+            </select>
+          </div>
+          <div class="field" style="margin-bottom:0;"><label>店別</label>
+            <select id="sch-store" onchange="renderSchedule()" style="min-width:100px;">
+              <option value="">全部</option>
+              <option value="竹北店">竹北店</option>
+              <option value="關新店">關新店</option>
+            </select>
+          </div>
           <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;">
             <span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;"><span style="width:12px;height:12px;border-radius:2px;background:#4ae87a;display:inline-block;"></span>抽籤錄取</span>
             <span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;"><span style="width:12px;height:12px;border-radius:2px;background:#7ab4f0;display:inline-block;"></span>休假（直接/補假）</span>
@@ -495,6 +659,36 @@ tr:hover td{background:rgba(255,255,255,.018);}
       </div>
       <div id="sch-shift-view" style="display:none;">
         <div id="sch-shift-table"></div>
+      </div>
+    </div>
+
+    <!-- 帳號管理（僅超級管理員） -->
+    <div id="panel-accounts" class="panel">
+      <div class="section-title">帳號管理</div>
+      <div class="grid-2">
+        <!-- 管理員帳號 -->
+        <div class="card">
+          <div class="section-title">管理員帳號</div>
+          <div class="field"><label>帳號</label><input type="text" id="new-admin-user" placeholder="輸入帳號"></div>
+          <div class="field"><label>密碼</label><input type="password" id="new-admin-pw" placeholder="輸入密碼"></div>
+          <button class="btn btn-primary" onclick="addAdmin()">新增管理員</button>
+          <div id="admin-list" style="margin-top:14px;"></div>
+        </div>
+        <!-- 員工 PIN 管理 -->
+        <div class="card">
+          <div class="section-title">員工 PIN 碼管理</div>
+          <div class="field"><label>選擇員工</label>
+            <select id="pin-emp-select" onchange="onPinEmpChange()" style="width:100%;"><option value="">-- 選擇員工 --</option></select>
+          </div>
+          <div id="pin-current" style="font-size:.78rem;margin-bottom:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);"></div>
+          <div class="field" style="margin-bottom:10px;"><label>設定 PIN 碼</label>
+            <input type="text" id="pin-set-input" placeholder="輸入新 PIN 碼" style="width:100%;">
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" style="flex:1;" onclick="setEmpPin()">設定 PIN</button>
+            <button class="btn btn-danger" style="flex:1;" onclick="resetEmpPin()">重置（清除）</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -546,7 +740,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <!-- 額外請假 -->
       <div style="margin-top:22px;border-top:1px solid var(--border);padding-top:20px;" id="self-el-section" style="display:none;">
         <h2 style="font-size:1rem;margin-bottom:5px;">🏖️ 額外請假申請</h2>
-        <div class="sub" style="margin-bottom:16px;">每月固定 <span id="self-quota-display" style="color:var(--accent);font-weight:700;">8</span> 天休假額度，可申請額外假期</div>
+        <div class="sub" style="margin-bottom:16px;">可申請排假以外的額外假期，送出後待管理員審核</div>
         <div id="self-el-quota-bar" style="margin-bottom:14px;"></div>
         <div class="field"><label>請假日期</label><input type="date" id="self-el-date" style="max-width:200px;"></div>
         <div class="field"><label>請假原因（選填）</label><input type="text" id="self-el-reason" placeholder="例：家庭事由"></div>
@@ -571,6 +765,11 @@ tr:hover td{background:rgba(255,255,255,.018);}
     </div>
   </div>
 </div>
+<!-- 本地模式提示 -->
+<div id="local-mode-banner" style="display:none;background:rgba(232,200,74,.12);border-bottom:1px solid rgba(232,200,74,.3);padding:8px 20px;text-align:center;font-family:'Space Mono',monospace;font-size:.7rem;color:var(--accent);letter-spacing:.06em;">
+  🖥️ 本地測試模式 — 資料僅存在此瀏覽器，不會同步至雲端
+</div>
+
 <!-- Loading Overlay -->
 <div id="loading-overlay" style="display:flex;position:fixed;inset:0;background:rgba(14,14,14,.92);z-index:9999;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
   <div style="width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;"></div>
@@ -581,18 +780,8 @@ tr:hover td{background:rgba(255,255,255,.018);}
 <div class="toast" id="toast"></div>
 
 <script>
-// ══ FIREBASE ══
-const firebaseConfig = {
-  apiKey: "AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
-  authDomain: "vacation-system-22655.firebaseapp.com",
-  projectId: "vacation-system-22655",
-  storageBucket: "vacation-system-22655.firebasestorage.app",
-  messagingSenderId: "171517523326",
-  appId: "1:171517523326:web:4ae4813fbbef7c93d2af2f"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const DATA_REF = db.collection('system').doc('data');
+// ══ MODE 偵測：Firebase 可用 → 雲端；否則 → localStorage 本地 ══
+const USE_LOCAL = typeof firebase === 'undefined';
 
 const DEFAULT_DATA = {
   employees:[],
@@ -602,14 +791,37 @@ const DEFAULT_DATA = {
   extraLeaves:[],
   makeupLeaves:[],
   monthlyQuota:8,
-  history:[]
+  history:[],
+  admins:[] // [{id, username, password}]
 };
 
-// ══ DATA ══
 let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let _saving=false, _pendingSave=false;
 
+// ── Firebase 設定（雲端模式） ──
+let DATA_REF = null;
+let AUTH_REF = null;
+if(!USE_LOCAL){
+  const firebaseConfig = {
+    apiKey: "AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
+    authDomain: "vacation-system-22655.firebaseapp.com",
+    projectId: "vacation-system-22655",
+    storageBucket: "vacation-system-22655.firebasestorage.app",
+    messagingSenderId: "171517523326",
+    appId: "1:171517523326:web:4ae4813fbbef7c93d2af2f"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  DATA_REF = db.collection('system').doc('data');
+  AUTH_REF  = db.collection('system').doc('auth');
+}
+
+// ── save ──
 function save(){
+  if(USE_LOCAL){
+    localStorage.setItem('vacLottery_local', JSON.stringify(data));
+    return;
+  }
   if(_saving){_pendingSave=true;return;}
   _saving=true;
   DATA_REF.set(data)
@@ -632,24 +844,41 @@ function migrateData(d){
   if(!Array.isArray(d.makeupLeaves)) d.makeupLeaves=[];
   if(!Array.isArray(d.history)) d.history=[];
   if(!d.monthlyQuota) d.monthlyQuota=8;
+  if(!Array.isArray(d.admins)) d.admins=[];
   return d;
 }
 
+// 本地模式超級管理員（僅 Claude 預覽用，密碼可自行修改）
+const LOCAL_SUPER = {username:'spadmin', password:'0629'};
+// 雲端超級管理員（從 Firestore auth 文件載入，程式碼裡無密碼）
+let _cloudSuper = null;
+function getSuperAdmin(){ return USE_LOCAL ? LOCAL_SUPER : _cloudSuper; }
+
 function initData(){
+  if(USE_LOCAL){
+    showLoading('本地模式載入中…');
+    const saved = localStorage.getItem('vacLottery_local');
+    data = saved ? migrateData(JSON.parse(saved)) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+    hideLoading(); window._isLocalMode=true; bootUI();
+    return;
+  }
   showLoading('連線至雲端資料庫…');
-  DATA_REF.get()
-    .then(snap=>{
-      data = snap.exists ? migrateData(snap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-      if(!snap.exists) DATA_REF.set(DEFAULT_DATA);
+  Promise.all([DATA_REF.get(), AUTH_REF.get()])
+    .then(([dataSnap, authSnap])=>{
+      data = dataSnap.exists ? migrateData(dataSnap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+      if(!dataSnap.exists) DATA_REF.set(DEFAULT_DATA);
       hideLoading();
-      bootUI();
+      if(!authSnap.exists){
+        document.getElementById('setup-screen').style.display='flex';
+      } else {
+        _cloudSuper = authSnap.data();
+        bootUI();
+      }
       DATA_REF.onSnapshot(snap=>{
         if(!snap.exists) return;
         const remote=migrateData(snap.data());
         if(JSON.stringify(remote)===JSON.stringify(data)) return;
-        data=remote;
-        refreshCurrentTab();
-        toast('🔄 資料已同步更新');
+        data=remote; refreshCurrentTab(); toast('🔄 資料已同步更新');
       });
     })
     .catch(e=>{
@@ -685,17 +914,186 @@ function closeModal(){ document.getElementById('modal').classList.remove('show')
 document.getElementById('modal-confirm').onclick=()=>{ closeModal(); if(_mcb)_mcb(); };
 
 // ══ MODE ══
+// ══ FIRST-TIME SETUP ══
+function submitSetup(){
+  const user=document.getElementById('setup-user').value.trim();
+  const pw=document.getElementById('setup-pw').value;
+  const pw2=document.getElementById('setup-pw2').value;
+  const err=document.getElementById('setup-err');
+  if(!user){err.textContent='請輸入帳號';err.style.display='block';return;}
+  if(!pw||pw.length<4){err.textContent='密碼至少需要 4 個字元';err.style.display='block';return;}
+  if(pw!==pw2){err.textContent='兩次密碼不一致';err.style.display='block';return;}
+  showLoading('儲存中…');
+  AUTH_REF.set({username:user,password:pw})
+    .then(()=>{
+      _cloudSuper={username:user,password:pw};
+      hideLoading();
+      document.getElementById('setup-screen').style.display='none';
+      bootUI();
+      toast('✓ 超級管理員設定完成');
+    })
+    .catch(()=>{ hideLoading(); err.textContent='儲存失敗，請重試'; err.style.display='block'; });
+}
+
+// ══ LOGIN ══
+
+let _currentRole = null; // 'superadmin' | 'admin' | 'employee'
+let _currentEmpId = null;
+let _currentAdminUser = null;
+
+function onLoginEmpChange(){
+  const eid=parseInt(document.getElementById('login-emp-select').value);
+  const emp=data.employees.find(e=>e.id===eid);
+  const errEl=document.getElementById('login-emp-err');
+  errEl.style.display='none';
+  const normalDiv=document.getElementById('login-emp-normal');
+  const setupDiv=document.getElementById('login-emp-setup');
+  if(!emp){normalDiv.style.display='none';setupDiv.style.display='none';return;}
+  if(emp.pin){
+    normalDiv.style.display='block';setupDiv.style.display='none';
+    document.getElementById('login-emp-pin').value='';
+    document.getElementById('login-emp-btn').textContent='進入員工系統';
+  }else{
+    normalDiv.style.display='none';setupDiv.style.display='block';
+    document.getElementById('login-emp-pin-new').value='';
+    document.getElementById('login-emp-pin-confirm').value='';
+    document.getElementById('login-emp-btn').textContent='設定 PIN 並登入';
+  }
+}
+
+function _enterSelfView(eid){
+  const emp=data.employees.find(e=>e.id===eid);
+  _currentRole='employee';_currentEmpId=eid;_currentAdminUser=null;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-header').style.display='flex';
+  document.getElementById('header-user-info').textContent=`👤 ${emp.name}（${emp.dept}）`;
+  document.getElementById('btn-change-pin').style.display='inline-block';
+  if(window._isLocalMode)document.getElementById('local-mode-banner').style.display='block';
+  document.getElementById('admin-view').style.display='none';
+  document.getElementById('self-view').style.display='block';
+  initSelfView();
+  setTimeout(()=>{
+    const pSel=document.getElementById('self-period');
+    if(pSel&&pSel.options.length>1){pSel.selectedIndex=1;onSelfPeriodChange();}
+    setTimeout(()=>{
+      const eSel=document.getElementById('self-emp');
+      if(eSel){for(let i=0;i<eSel.options.length;i++){if(parseInt(eSel.options[i].value)===eid){eSel.selectedIndex=i;break;}}onSelfEmpChange();}
+    },100);
+  },100);
+}
+
+function loginAsEmployee(){
+  const eid=parseInt(document.getElementById('login-emp-select').value);
+  const errEl=document.getElementById('login-emp-err');
+  const emp=data.employees.find(e=>e.id===eid);
+  if(!emp){errEl.textContent='請選擇姓名';errEl.style.display='block';return;}
+  if(!emp.pin){
+    // 首次設定 PIN
+    const newPin=document.getElementById('login-emp-pin-new').value;
+    const confirmPin=document.getElementById('login-emp-pin-confirm').value;
+    if(!newPin){errEl.textContent='請輸入 PIN 碼';errEl.style.display='block';return;}
+    if(newPin.length<2){errEl.textContent='PIN 碼至少需要 2 個字元';errEl.style.display='block';return;}
+    if(newPin!==confirmPin){errEl.textContent='兩次輸入的 PIN 碼不一致';errEl.style.display='block';return;}
+    emp.pin=newPin;save();
+  }else{
+    const pin=document.getElementById('login-emp-pin').value;
+    if(!pin){errEl.textContent='請輸入 PIN 碼';errEl.style.display='block';return;}
+    if(emp.pin!==pin){errEl.textContent='PIN 碼錯誤';errEl.style.display='block';return;}
+  }
+  errEl.style.display='none';
+  _enterSelfView(eid);
+}
+
+function showChangePinModal(){
+  document.getElementById('modal-title').textContent='修改 PIN 碼';
+  document.getElementById('modal-msg').innerHTML=`
+    <div class="field" style="margin-bottom:10px;"><label>新 PIN 碼</label>
+      <input type="password" id="change-pin-new" placeholder="輸入新 PIN 碼" style="width:100%;">
+    </div>
+    <div class="field"><label>確認新 PIN 碼</label>
+      <input type="password" id="change-pin-confirm" placeholder="再次輸入" style="width:100%;">
+    </div>
+    <div id="change-pin-err" style="display:none;font-size:.76rem;color:var(--red);margin-top:6px;"></div>`;
+  document.getElementById('modal-confirm').textContent='確認修改';
+  document.getElementById('modal').classList.add('show');
+  _mcb=()=>{
+    const np=document.getElementById('change-pin-new').value;
+    const cp=document.getElementById('change-pin-confirm').value;
+    const err=document.getElementById('change-pin-err');
+    if(!np||np.length<2){err.textContent='PIN 碼至少需要 2 個字元';err.style.display='block';return false;}
+    if(np!==cp){err.textContent='兩次輸入不一致';err.style.display='block';return false;}
+    const emp=data.employees.find(e=>e.id===_currentEmpId);
+    if(emp){emp.pin=np;save();toast('✓ PIN 碼已更新');}
+  };
+}
+
+function showLoginScreen(){
+  const sel=document.getElementById('login-emp-select');
+  sel.innerHTML='<option value="">-- 請選擇 --</option>';
+  (data.employees||[]).forEach(e=>{
+    const o=document.createElement('option');o.value=e.id;
+    o.textContent=`${e.name}（${e.dept}）`;sel.appendChild(o);
+  });
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('main-header').style.display='none';
+  document.getElementById('admin-view').style.display='none';
+  document.getElementById('self-view').style.display='none';
+  document.getElementById('login-admin-user').value='';
+  document.getElementById('login-admin-pw').value='';
+  document.getElementById('login-admin-err').style.display='none';
+  document.getElementById('login-emp-err').style.display='none';
+  document.getElementById('login-emp-normal').style.display='none';
+  document.getElementById('login-emp-setup').style.display='none';
+}
+
+function loginAsAdmin(){
+  const user=document.getElementById('login-admin-user').value.trim();
+  const pw=document.getElementById('login-admin-pw').value;
+  const errEl=document.getElementById('login-admin-err');
+  if(!user||!pw){errEl.textContent='請輸入帳號和密碼';errEl.style.display='block';return;}
+
+  // 超級管理員驗證（本地用 LOCAL_SUPER，雲端用 _cloudSuper）
+  let role='admin';
+  const sa=getSuperAdmin();
+  if(sa && user===sa.username && pw===sa.password){
+    role='superadmin';
+  } else {
+    // 一般管理員
+    const found=(data.admins||[]).find(a=>a.username===user&&a.password===pw);
+    if(!found){errEl.textContent='帳號或密碼錯誤';errEl.style.display='block';
+      document.getElementById('login-admin-pw').value='';return;}
+  }
+  errEl.style.display='none';
+  _currentRole=role; _currentAdminUser=user; _currentEmpId=null;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('main-header').style.display='flex';
+  document.getElementById('header-user-info').textContent=`🔧 ${role==='superadmin'?'超級管理員':user}`;
+  if(window._isLocalMode) document.getElementById('local-mode-banner').style.display='block';
+  document.getElementById('admin-view').style.display='block';
+  document.getElementById('self-view').style.display='none';
+  // 超級管理員才顯示帳號管理分頁
+  document.getElementById('btn-change-pin').style.display='none';
+  document.getElementById('tab-accounts').style.display=role==='superadmin'?'inline-block':'none';
+  renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+}
+
+function logout(){
+  _currentRole=null;_currentEmpId=null;_currentAdminUser=null;
+  document.getElementById('local-mode-banner').style.display='none';
+  document.getElementById('btn-change-pin').style.display='none';
+  showLoginScreen();
+}
+
 function setMode(m){
-  document.getElementById('admin-view').style.display=m==='admin'?'block':'none';
-  document.getElementById('self-view').style.display=m==='self'?'block':'none';
-  document.getElementById('mode-admin-btn').classList.toggle('active',m==='admin');
-  document.getElementById('mode-self-btn').classList.toggle('active',m==='self');
-  if(m==='self') initSelfView();
+  if(m==='admin'&&(_currentRole==='admin'||_currentRole==='superadmin')){
+    document.getElementById('admin-view').style.display='block';
+    document.getElementById('self-view').style.display='none';
+  }
 }
 
 // ══ TABS ══
 function switchTab(name){
-  const ns=['employees','periods','applications','lottery','extraleave','schedule','history'];
+  const ns=['employees','periods','applications','lottery','extraleave','schedule','history','accounts'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',ns[i]===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
@@ -706,6 +1104,7 @@ function switchTab(name){
   if(name==='extraleave'){refreshElSelects();renderExtraLeave();}
   if(name==='schedule'){initSchedule();}
   if(name==='history')renderHistory();
+  if(name==='accounts')renderAccounts();
 }
 
 // ══ DEPTS ══
@@ -720,8 +1119,8 @@ function addDept(){
 function removeDept(dept){
   const empCount=data.employees.filter(e=>e.dept===dept).length;
   const msg=empCount>0
-    ? `確定要刪除「${dept} 班」？該班別有 ${empCount} 位員工，一併刪除員工及其排假申請。`
-    : `確定要刪除「${dept} 班」？`;
+    ? `確定要刪除「${dept}」？該班別有 ${empCount} 位員工，一併刪除員工及其排假申請。`
+    : `確定要刪除「${dept}」？`;
   showModal('刪除班別',msg,()=>{
     data.departments=data.departments.filter(d=>d!==dept);
     const removedEmpIds=data.employees.filter(e=>e.dept===dept).map(e=>e.id);
@@ -734,15 +1133,26 @@ function renderDeptList(){
   const el=document.getElementById('dept-list');
   if(!el)return;
   if(!data.departments.length){el.innerHTML='<div style="color:var(--text-dim);font-size:.82rem;padding:8px 0;">尚未設定班別</div>';return;}
-  el.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px;">` +
-    data.departments.map(d=>{
+  el.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;">` +
+    data.departments.map((d,i)=>{
       const cnt=data.employees.filter(e=>e.dept===d).length;
-      return `<div style="display:inline-flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;">
-        <span style="font-family:'Space Mono',monospace;font-size:.76rem;font-weight:700;">${d}</span>
+      return `<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;">
+        <div style="display:flex;flex-direction:column;gap:1px;">
+          <button onclick="moveDept(${i},-1)" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.7rem;padding:0;line-height:1.2;${i===0?'opacity:.2;pointer-events:none':''}">▲</button>
+          <button onclick="moveDept(${i},1)" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.7rem;padding:0;line-height:1.2;${i===data.departments.length-1?'opacity:.2;pointer-events:none':''}">▼</button>
+        </div>
+        <span style="font-family:'Space Mono',monospace;font-size:.76rem;font-weight:700;flex:1;">${d}</span>
         <span class="badge b-yellow">${cnt} 人</span>
         <button onclick="removeDept('${d}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:.9rem;padding:0;line-height:1;" title="刪除班別">✕</button>
       </div>`;
     }).join('') + `</div>`;
+}
+function moveDept(idx, dir){
+  const arr=data.departments;
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=arr.length)return;
+  [arr[idx],arr[newIdx]]=[arr[newIdx],arr[idx]];
+  save();renderDeptList();renderDeptOptions();renderShiftDefaults();
 }
 function renderDeptOptions(){
   const empSel=document.getElementById('emp-dept');
@@ -755,10 +1165,12 @@ function renderDeptOptions(){
 function addEmployee(){
   const name=document.getElementById('emp-name').value.trim();
   const dept=document.getElementById('emp-dept').value;
+  const store=document.getElementById('emp-store').value||'竹北店';
+  const gender=document.querySelector('input[name="emp-gender"]:checked')?.value||'male';
   if(!name)return toast('請輸入姓名',true);
   if(!dept)return toast('請選擇班別',true);
   if(data.employees.find(e=>e.name===name&&e.dept===dept))return toast('同班別已有此員工',true);
-  data.employees.push({id:Date.now(),name,dept});
+  data.employees.push({id:Date.now(),name,dept,store,gender});
   save();renderEmployees();updateStats();document.getElementById('emp-name').value='';toast('✓ 員工已新增');
 }
 function removeEmployee(id){
@@ -772,13 +1184,18 @@ function clearAllEmployees(){
 }
 function renderEmployees(){
   renderDeptOptions();
+  // 現有員工若無性別欄位，預設為男
+  data.employees.forEach(e=>{ if(!e.gender) e.gender='male'; if(!e.store) e.store='竹北店'; });
   const filter=document.getElementById('filter-dept')?.value||'';
   const list=filter?data.employees.filter(e=>e.dept===filter):[...data.employees];
   const tb=document.getElementById('emp-table');
-  if(!list.length){tb.innerHTML='<tr><td colspan="4" class="empty"><div class="empty-icon">👥</div>尚未新增員工</td></tr>';return;}
+  if(!list.length){tb.innerHTML='<tr><td colspan="6" class="empty"><div class="empty-icon">👥</div>尚未新增員工</td></tr>';return;}
   tb.innerHTML=list.map((e,i)=>`<tr>
     <td><span style="font-family:'Space Mono',monospace;font-size:.66rem;color:var(--text-dim)">${String(i+1).padStart(2,'0')}</span></td>
-    <td>${e.name}</td><td><span class="badge b-yellow">${e.dept} 班</span></td>
+    <td>${e.name}</td>
+    <td><span class="badge ${e.gender==='female'?'b-red':'b-blue'}" style="font-size:.6rem;">${e.gender==='female'?'女':'男'}</span></td>
+    <td><span class="badge b-green" style="font-size:.6rem;">${e.store||'竹北店'}</span></td>
+    <td><span class="badge b-yellow">${e.dept}</span></td>
     <td><button class="btn btn-danger" style="padding:3px 10px;font-size:.6rem;" onclick="removeEmployee(${e.id})">移除</button></td>
   </tr>`).join('');
 }
@@ -853,15 +1270,13 @@ let _shiftDefaults = {}; // { sh: { weekday: n, holiday: n } }
 function renderShiftDefaults(){
   const tbody=document.getElementById('shift-defaults-tbody');
   if(!tbody)return;
-  const existing=tbody.querySelectorAll('tr');
-  if(existing.length===data.departments.length) return;
-  // init _shiftDefaults for any missing shifts
+  // 永遠重建（編輯模式需要顯示還原的值）
   data.departments.forEach(sh=>{
     if(!_shiftDefaults[sh]) _shiftDefaults[sh]={weekday:1,holiday:1};
   });
   const shifts=data.departments;
   tbody.innerHTML=shifts.map(sh=>`<tr>
-    <td style="padding:6px 12px;white-space:nowrap;"><span class="badge b-yellow">${sh} 班</span></td>
+    <td style="padding:6px 12px;white-space:nowrap;"><span class="badge b-yellow">${sh}</span></td>
     <td style="padding:5px 10px;text-align:center;"><input type="number" min="0" value="${_shiftDefaults[sh].weekday}" oninput="_shiftDefaults['${sh}'].weekday=Math.max(0,parseInt(this.value)||0)" style="width:58px;padding:4px;text-align:center;font-family:'Space Mono',monospace;font-size:.78rem;"></td>
     <td style="padding:5px 10px;text-align:center;"><input type="number" min="0" value="${_shiftDefaults[sh].holiday}" oninput="_shiftDefaults['${sh}'].holiday=Math.max(0,parseInt(this.value)||0)" style="width:58px;padding:4px;text-align:center;font-family:'Space Mono',monospace;font-size:.78rem;"></td>
   </tr>`).join('');
@@ -900,7 +1315,7 @@ function renderLimitTable(dates){
       return `<th id="lth_${d}" style="text-align:center;padding:6px 4px;min-width:58px;color:${col};">${fd(d)}<br><span style="font-size:.52rem;font-weight:400;">${TYPE_LABELS[t]}</span></th>`;
     }).join('')+'</tr>';
   document.getElementById('limit-tbody').innerHTML=shifts.map(sh=>`<tr>
-    <td style="padding:5px 10px;white-space:nowrap;"><span class="badge b-yellow">${sh} 班</span></td>
+    <td style="padding:5px 10px;white-space:nowrap;"><span class="badge b-yellow">${sh}</span></td>
     ${dates.map(d=>{
       const t=_dateTypes[d]||'weekday';
       const val=(_limits[sh]&&_limits[sh][d]!==undefined)?_limits[sh][d]:(t==='closed'?0:1);
@@ -925,11 +1340,15 @@ function addPeriod(){
     });
   });
   const dateTypes={..._dateTypes};
-  data.periods.push({id:Date.now(),name,start,end,limits,dateTypes});
+  const genderRestrict=document.getElementById('period-gender').value||'';
+  const storeRestrict=document.getElementById('period-store').value||'';
+  data.periods.push({id:Date.now(),name,start,end,limits,dateTypes,genderRestrict,storeRestrict});
   save();renderPeriods();updateStats();
   document.getElementById('period-name').value='';
   document.getElementById('period-start').value='';
   document.getElementById('period-end').value='';
+  document.getElementById('period-gender').value='';
+  document.getElementById('period-store').value='';
   document.getElementById('period-setup-wrap').style.display='none';
   _dateTypes={}; _limits={}; _shiftDefaults={};
   toast('✓ 假期已新增');
@@ -949,9 +1368,9 @@ function renderPeriods(){
   el.innerHTML=data.periods.map(p=>{
     const dates=getDates(p.start,p.end), shifts=data.departments;
     const dt=p.dateTypes||{};
-    const wdCount=dates.filter(d=>(dt[d]||( isWk(d)?'holiday':'weekday'))==='weekday').length;
-    const hlCount=dates.filter(d=>(dt[d]||( isWk(d)?'holiday':'weekday'))==='holiday').length;
-    const clCount=dates.filter(d=>(dt[d]||( isWk(d)?'holiday':'weekday'))==='closed').length;
+    const wdCount=dates.filter(d=>(dt[d]||(isWk(d)?'holiday':'weekday'))==='weekday').length;
+    const hlCount=dates.filter(d=>(dt[d]||(isWk(d)?'holiday':'weekday'))==='holiday').length;
+    const clCount=dates.filter(d=>(dt[d]||(isWk(d)?'holiday':'weekday'))==='closed').length;
     return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:13px 15px;margin-bottom:10px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <div>
@@ -961,9 +1380,14 @@ function renderPeriods(){
             <span style="color:var(--green);">平日 ${wdCount} 天</span>
             <span style="color:var(--accent);">假日 ${hlCount} 天</span>
             ${clCount?`<span style="color:var(--red);">不開放 ${clCount} 天</span>`:''}
+            ${p.genderRestrict==='male'?`<span style="color:#7ab4f0;">僅限男性</span>`:p.genderRestrict==='female'?`<span style="color:#f07ab4;">僅限女性</span>`:''}
+            ${p.storeRestrict?`<span style="color:var(--accent);">僅限${p.storeRestrict}</span>`:''}
           </div>
         </div>
-        <button class="btn btn-danger" style="padding:4px 10px;font-size:.6rem;" onclick="removePeriod(${p.id})">刪除</button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="padding:4px 10px;font-size:.6rem;" onclick="editPeriod(${p.id})">編輯</button>
+          <button class="btn btn-danger" style="padding:4px 10px;font-size:.6rem;" onclick="removePeriod(${p.id})">刪除</button>
+        </div>
       </div>
       <div style="overflow-x:auto;"><table style="font-size:.7rem;width:auto;">
         <thead><tr>
@@ -975,7 +1399,7 @@ function renderPeriods(){
           }).join('')}
         </tr></thead>
         <tbody>${shifts.map(sh=>`<tr>
-          <td style="padding:4px 9px;white-space:nowrap;"><span class="badge b-yellow">${sh} 班</span></td>
+          <td style="padding:4px 9px;white-space:nowrap;"><span class="badge b-yellow">${sh}</span></td>
           ${dates.map(d=>{const lim=getLim(p,sh,d);return `<td style="text-align:center;padding:4px 3px;font-family:'Space Mono',monospace;font-size:.64rem;color:${lim===0?'var(--text-dim)':'var(--accent)'};">${lim===0?'✗':lim}</td>`;}).join('')}
         </tr>`).join('')}</tbody>
       </table></div>
@@ -983,20 +1407,116 @@ function renderPeriods(){
   }).join('');
 }
 
+let _editingPeriodId = null;
+
+function editPeriod(id){
+  const p=data.periods.find(x=>x.id===id);
+  if(!p)return;
+  _editingPeriodId=id;
+
+  // 填入表單
+  document.getElementById('period-name').value=p.name;
+  document.getElementById('period-start').value=p.start;
+  document.getElementById('period-end').value=p.end;
+  document.getElementById('period-gender').value=p.genderRestrict||'';
+  document.getElementById('period-store').value=p.storeRestrict||'';
+
+  // 還原 _dateTypes 和 _limits
+  _dateTypes={...(p.dateTypes||{})};
+  const dates=getDates(p.start,p.end);
+  dates.forEach(d=>{ if(!_dateTypes[d]) _dateTypes[d]=isWk(d)?'holiday':'weekday'; });
+  _limits={};
+  data.departments.forEach(sh=>{
+    _limits[sh]={};
+    dates.forEach(d=>{ _limits[sh][d]=getLim(p,sh,d); });
+  });
+  // 從現有 _limits 反推 _shiftDefaults（取平日/假日的眾數或第一個值）
+  _shiftDefaults={};
+  data.departments.forEach(sh=>{
+    const wdVals=dates.filter(d=>(_dateTypes[d]||'weekday')==='weekday').map(d=>_limits[sh][d]).filter(v=>v!==undefined);
+    const hlVals=dates.filter(d=>(_dateTypes[d]||'weekday')==='holiday').map(d=>_limits[sh][d]).filter(v=>v!==undefined);
+    _shiftDefaults[sh]={
+      weekday: wdVals.length ? wdVals[0] : 1,
+      holiday: hlVals.length ? hlVals[0] : 1
+    };
+  });
+
+  // 顯示設定區並重建表格
+  document.getElementById('period-setup-wrap').style.display='block';
+  renderDateTypeRow(dates);
+  renderShiftDefaults();
+  renderLimitTable(dates);
+
+  // 切換按鈕為「更新」
+  const btn=document.querySelector('#panel-periods button.btn-primary[onclick="addPeriod()"]');
+  if(btn){ btn.textContent='更新假期'; btn.setAttribute('onclick','updatePeriod()'); }
+
+  // 捲到頂部表單
+  document.getElementById('period-name').scrollIntoView({behavior:'smooth',block:'center'});
+  toast('已載入假期資料，修改後按「更新假期」儲存');
+}
+
+function updatePeriod(){
+  if(!_editingPeriodId)return addPeriod();
+  const name=document.getElementById('period-name').value.trim();
+  const start=document.getElementById('period-start').value, end=document.getElementById('period-end').value;
+  if(!name)return toast('請輸入假期名稱',true);
+  if(!start||!end)return toast('請設定日期',true);
+  if(start>end)return toast('開始日期不能晚於結束日期',true);
+
+  const dates=getDates(start,end), shifts=data.departments, limits={};
+  shifts.forEach(sh=>{
+    limits[sh]={};
+    dates.forEach(d=>{ limits[sh][d]=(_limits[sh]&&_limits[sh][d]!==undefined)?_limits[sh][d]:1; });
+  });
+  const dateTypes={..._dateTypes};
+  const genderRestrict=document.getElementById('period-gender').value||'';
+  const storeRestrict=document.getElementById('period-store').value||'';
+  const idx=data.periods.findIndex(p=>p.id===_editingPeriodId);
+  if(idx===-1)return toast('找不到假期',true);
+  data.periods[idx]={...data.periods[idx],name,start,end,limits,dateTypes,genderRestrict,storeRestrict};
+  save();renderPeriods();updateStats();
+
+  // 重置表單和按鈕
+  document.getElementById('period-name').value='';
+  document.getElementById('period-start').value='';
+  document.getElementById('period-end').value='';
+  document.getElementById('period-setup-wrap').style.display='none';
+  _dateTypes={}; _limits={}; _shiftDefaults={}; _editingPeriodId=null;
+
+  const btn=document.querySelector('#panel-periods button[onclick="updatePeriod()"]');
+  if(btn){ btn.textContent='新增假期'; btn.setAttribute('onclick','addPeriod()'); }
+
+  toast('✓ 假期已更新');
+}
+
 // ══ APPLICATIONS (shared logic) ══
 function _addAppCore(periodId,empId,dates){
   const p=data.periods.find(x=>x.id===periodId);
   const emp=data.employees.find(e=>e.id===empId);
   if(!p||!emp)return{ok:false,msg:'資料錯誤'};
+  // 性別限制檢查
+  if(p.genderRestrict){
+    const empGender=emp.gender||'male';
+    if(empGender!==p.genderRestrict){
+      const label=p.genderRestrict==='male'?'男性':'女性';
+      return{ok:false,msg:`此假期僅開放${label}申請`};
+    }
+  }
+  if(p.storeRestrict){
+    const empStore=emp.store||'竹北店';
+    if(empStore!==p.storeRestrict)
+      return{ok:false,msg:`此假期僅開放${p.storeRestrict}員工申請`};
+  }
   const blocked=dates.filter(d=>getLim(p,emp.dept,d)===0);
-  if(blocked.length)return{ok:false,msg:`${emp.dept} 班以下日期不開放：${blocked.map(fd).join('、')}`};
+  if(blocked.length)return{ok:false,msg:`${emp.dept}以下日期不開放：${blocked.map(fd).join('、')}`};
   // 計算此員工在此假期已申請天數
   const existing=data.applications.find(a=>a.periodId===periodId&&a.empId===empId);
   const alreadyCount=existing?existing.dates.length:0;
   const newDates=dates.filter(d=>!existing||!existing.dates.includes(d));
   const quota=data.monthlyQuota||8;
   if(alreadyCount+newDates.length>quota)
-    return{ok:false,msg:`超過每月休假上限（${quota} 天），目前已申請 ${alreadyCount} 天，最多還能申請 ${quota-alreadyCount} 天`};
+    return{ok:false,msg:`超過每月排假上限（${quota} 天），目前已申請 ${alreadyCount} 天，最多還能申請 ${quota-alreadyCount} 天`};
   let added=0;
   newDates.forEach(d=>{
     let rec=data.applications.find(a=>a.periodId===periodId&&a.empId===empId);
@@ -1024,7 +1544,47 @@ function refreshAppSelects(){
     if(c)s.value=c;
   });
   const fs=document.getElementById('app-filter-shift');
-  if(fs){const c=fs.value;fs.innerHTML='<option value="">全部班別</option>';data.departments.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+' 班';fs.appendChild(o);});if(c)fs.value=c;}
+  if(fs){const c=fs.value;fs.innerHTML='<option value="">全部班別</option>';data.departments.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+'';fs.appendChild(o);});if(c)fs.value=c;}
+  // populate proxy extra leave employee select
+  const pe=document.getElementById('proxy-el-emp');
+  if(pe){const c=pe.value;pe.innerHTML='<option value="">-- 選擇員工 --</option>';data.employees.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name}（${e.dept}）`;pe.appendChild(o);});if(c)pe.value=c;}
+}
+function onProxyElEmpChange(){
+  const eid=parseInt(document.getElementById('proxy-el-emp').value);
+  const emp=data.employees.find(e=>e.id===eid);
+  const info=document.getElementById('proxy-el-quota-info');
+  if(!emp){info.innerHTML='請先選擇員工';return;}
+  const used=(data.extraLeaves||[]).filter(l=>l.empId===eid&&l.status!=='rejected').length;
+  info.innerHTML=`<div style="margin-bottom:6px;font-weight:600;">${emp.name}（${emp.dept}）</div>
+    <div style="font-size:.8rem;color:var(--text-dim);">本月已申請額外請假：<span style="font-family:'Space Mono',monospace;color:var(--accent);">${used} 天</span></div>
+    <div style="margin-top:6px;font-size:.74rem;color:var(--text-dim);">額外請假無天數上限</div>`;
+}
+function addProxyExtraLeave(){
+  const eid=parseInt(document.getElementById('proxy-el-emp').value);
+  const date=document.getElementById('proxy-el-date').value;
+  const reason=document.getElementById('proxy-el-reason').value.trim();
+  if(!eid)return toast('請選擇員工',true);
+  if(!date)return toast('請選擇日期',true);
+  const emp=data.employees.find(e=>e.id===eid);
+  if(!emp)return;
+  if((data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===date&&l.status!=='rejected'))
+    return toast('此員工此日期已有申請',true);
+  if(!data.extraLeaves)data.extraLeaves=[];
+  data.extraLeaves.push({
+    id:`${Date.now()}_${Math.floor(Math.random()*1000000)}`,
+    empId:eid,empName:emp.name,shift:emp.dept,
+    date,reason:reason||'管理員代為申請',
+    status:'approved',
+    appliedAt:new Date().toLocaleString('zh-TW'),
+    reviewedAt:new Date().toLocaleString('zh-TW')
+  });
+  save();
+  document.getElementById('proxy-el-date').value='';
+  document.getElementById('proxy-el-reason').value='';
+  onProxyElEmpChange();
+  refreshElSelects();renderExtraLeave();
+  if(document.getElementById('panel-schedule').classList.contains('active'))renderSchedule();
+  toast(`✓ ${emp.name} ${date} 額外請假已新增（直接核准）`);
 }
 function onAppPeriodChange(){
   const pid=parseInt(document.getElementById('app-period').value);
@@ -1034,7 +1594,17 @@ function onAppPeriodChange(){
   empSel.innerHTML='<option value="">-- 選擇員工 --</option>';
   dw.innerHTML='<div style="color:var(--text-dim);font-size:.78rem;">請先選擇假期</div>';
   if(!p)return;
-  data.employees.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name}（${e.dept} 班）`;empSel.appendChild(o);});
+  const eligibleEmps=data.employees.filter(e=>{
+    if(p.genderRestrict&&(e.gender||'male')!==p.genderRestrict) return false;
+    if(p.storeRestrict&&(e.store||'竹北店')!==p.storeRestrict) return false;
+    return true;
+  });
+  const restrictions=[];
+  if(p.genderRestrict) restrictions.push(p.genderRestrict==='male'?'男性':'女性');
+  if(p.storeRestrict) restrictions.push(p.storeRestrict);
+  if(restrictions.length) empSel.innerHTML=`<option value="">-- 選擇員工（僅${restrictions.join('・')}）--</option>`;
+  else empSel.innerHTML='<option value="">-- 選擇員工 --</option>';
+  eligibleEmps.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name}（${e.dept}）`;empSel.appendChild(o);});
   const dates=getDates(p.start,p.end);
   dw.innerHTML=dates.map(d=>`<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Serif TC',serif;color:${isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
     <input type="checkbox" id="appdate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"> ${fd(d)}
@@ -1055,27 +1625,39 @@ function addApplication(){
 function renderApplications(){
   const filterPid=parseInt(document.getElementById('app-filter-period')?.value)||null;
   const filterShift=document.getElementById('app-filter-shift')?.value||'';
+  const filterGender=document.getElementById('app-filter-gender')?.value||'';
   const el=document.getElementById('app-overview');
   const periods=filterPid?data.periods.filter(p=>p.id===filterPid):data.periods;
   if(!periods.length){el.innerHTML='<div class="empty"><div class="empty-icon">📅</div>尚無假期，請先設定假期</div>';return;}
+
+  // 性別過濾：找出符合性別的員工 empId 集合
+  const genderEmpIds=filterGender
+    ? new Set(data.employees.filter(e=>(e.gender||'male')===filterGender).map(e=>e.id))
+    : null;
+
   let html='';
   periods.forEach(p=>{
     const dates=getDates(p.start,p.end);
     const shifts=filterShift?[filterShift]:data.departments;
     html+=`<div style="margin-bottom:18px;"><div class="section-title">${p.name} <span style="color:var(--text-dim);font-size:.56rem;font-weight:400;">${p.start}～${p.end}</span></div>`;
     shifts.forEach(shift=>{
+      // 若有性別篩選，只計算符合性別的申請
+      const getFilteredApps=(pid,sh,d)=>{
+        const apps=getApps(pid,sh,d);
+        return genderEmpIds ? apps.filter(a=>genderEmpIds.has(a.empId)) : apps;
+      };
       let overDays=0,totalApps=0;
-      dates.forEach(d=>{const lim=getLim(p,shift,d);const cnt=getApps(p.id,shift,d).length;totalApps+=cnt;if(lim>0&&cnt>lim)overDays++;});
+      dates.forEach(d=>{const lim=getLim(p,shift,d);const cnt=getFilteredApps(p.id,shift,d).length;totalApps+=cnt;if(lim>0&&cnt>lim)overDays++;});
       const sb=overDays>0?`<span class="badge b-red">${overDays} 天需抽籤</span>`:totalApps>0?`<span class="badge b-green">全部直接錄取</span>`:`<span class="badge b-gray">尚無申請</span>`;
       html+=`<div class="app-shift-block">
         <div class="app-shift-hdr" onclick="this.parentElement.classList.toggle('open')">
-          <div style="display:flex;align-items:center;gap:9px;"><span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;">${shift} 班</span><span class="badge b-yellow">${dates.length} 天</span></div>
+          <div style="display:flex;align-items:center;gap:9px;"><span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;">${shift}</span><span class="badge b-yellow">${dates.length} 天</span></div>
           <div style="display:flex;align-items:center;gap:7px;">${sb}<span style="color:var(--text-dim);font-size:.78rem;">▾</span></div>
         </div>
         <div class="app-shift-body">`;
       dates.forEach(d=>{
         const lim=getLim(p,shift,d);
-        const applicants=getApps(p.id,shift,d);
+        const applicants=getFilteredApps(p.id,shift,d);
         const cnt=applicants.length;
         let statusHtml='';
         if(lim===0)statusHtml=`<span class="st-closed">不開放</span>`;
@@ -1117,7 +1699,18 @@ function onSelfPeriodChange(){
   document.getElementById('self-dates-section').style.display='none';
   document.getElementById('self-my-apps').style.display='none';
   if(!p)return;
-  data.employees.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name}（${e.dept} 班）`;empSel.appendChild(o);});
+  const eligibleEmps=data.employees.filter(e=>{
+    if(p.genderRestrict&&(e.gender||'male')!==p.genderRestrict) return false;
+    if(p.storeRestrict&&(e.store||'竹北店')!==p.storeRestrict) return false;
+    return true;
+  });
+  const restrictions=[];
+  if(p.genderRestrict) restrictions.push(p.genderRestrict==='male'?'男性':'女性');
+  if(p.storeRestrict) restrictions.push(p.storeRestrict);
+  empSel.innerHTML=restrictions.length
+    ? `<option value="">-- 選擇您的姓名（僅${restrictions.join('・')}）--</option>`
+    : '<option value="">-- 選擇您的姓名 --</option>';
+  eligibleEmps.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name}（${e.dept}）`;empSel.appendChild(o);});
   empSel.onchange=()=>onSelfEmpChange();
 }
 function onSelfEmpChange(){
@@ -1242,7 +1835,7 @@ function onLotteryPeriodChange(){
   // Setup manual selects
   const ss=document.getElementById('lottery-shift');
   ss.innerHTML='<option value="">-- 選擇班別 --</option>';
-  data.departments.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s+' 班';ss.appendChild(o);});
+  data.departments.forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s+'';ss.appendChild(o);});
   document.getElementById('lottery-day').innerHTML='<option value="">-- 先選班別 --</option>';
 }
 
@@ -1272,7 +1865,7 @@ function buildAllPreview(p){
     html+=`<div style="padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);font-size:.82rem;margin-bottom:8px;">
       <span style="color:var(--accent2);font-family:'Space Mono',monospace;font-size:.7rem;">⚠ 待抽籤 ${slots.length} 場</span>
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:5px;">
-        ${slots.map(s=>`<span class="badge b-red">${s.shift} 班 ${fd(s.date)} ${s.cnt}→${s.lim}人</span>`).join('')}
+        ${slots.map(s=>`<span class="badge b-red">${s.shift} ${fd(s.date)} ${s.cnt}→${s.lim}人</span>`).join('')}
       </div>
       ${directCount>0?`<div style="margin-top:6px;color:var(--text-dim);font-size:.76rem;">另有 ${directCount} 人直接錄取</div>`:''}
     </div>`;
@@ -1281,7 +1874,7 @@ function buildAllPreview(p){
     html+=`<div style="padding:10px 14px;background:var(--surface2);border:1px solid rgba(74,232,122,.2);border-radius:var(--radius);font-size:.8rem;">
       <span style="color:var(--green);font-family:'Space Mono',monospace;font-size:.68rem;">✓ 已完成 ${done.length} 場</span>
       <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:5px;">
-        ${done.map(s=>`<span class="badge b-green">${s.shift} 班 ${fd(s.date)}</span>`).join('')}
+        ${done.map(s=>`<span class="badge b-green">${s.shift} ${fd(s.date)}</span>`).join('')}
       </div>
     </div>`;
   }
@@ -1337,7 +1930,7 @@ function runSlot(idx){
   document.getElementById('result-section').style.display='none';
   document.getElementById('all-done-section').style.display='none';
   document.getElementById('stage-title').textContent=`🎲 第 ${idx+1}/${_batchSlots.length} 場`;
-  document.getElementById('stage-subtitle').textContent=`${slot.shift} 班｜${slot.date}｜從 ${pool.length} 人抽出 ${slot.lim} 人`;
+  document.getElementById('stage-subtitle').textContent=`${slot.shift}｜${slot.date}｜從 ${pool.length} 人抽出 ${slot.lim} 人`;
   updateDC(); renderDrum();
   document.getElementById('btn-draw').style.display='inline-block';
   document.getElementById('btn-auto').style.display='inline-block';
@@ -1361,7 +1954,7 @@ function showAllDone(){
     html+=`<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:8px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:7px;">
         <span style="font-family:'Space Mono',monospace;font-size:.7rem;color:var(--text-dim);">#${String(i+1).padStart(2,'0')}</span>
-        <span class="badge b-yellow">${r.shift} 班</span>
+        <span class="badge b-yellow">${r.shift}</span>
         <span style="font-family:'Space Mono',monospace;font-size:.72rem;">${r.date}</span>
         <span class="badge b-green">${r.winners.length} 人錄取</span>
       </div>
@@ -1426,10 +2019,10 @@ function onLotteryDayChange(){
   const applicants=getApps(p.id,shift,date);
   const cnt=applicants.length;
   si.style.display='block';
-  if(lim===0) si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift} 班</strong> 📆 ${date}<br><span style="color:var(--text-dim);">此日不開放</span>`;
-  else if(cnt===0) si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift} 班</strong> 📆 ${date}<br>👥 0人申請，上限 ${lim} 人`;
-  else if(cnt<=lim) si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift} 班</strong> 📆 ${date}<br>👥 ${cnt}人申請，上限 ${lim} 人<br><span style="color:var(--green);">✓ 未超限，直接錄取</span>`;
-  else{ si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift} 班</strong> 📆 ${date}<br>👥 <strong style="color:var(--red)">${cnt}人</strong>申請，上限 ${lim} 人<br><span style="color:var(--accent2);">⚠ 超限，需抽出 ${lim} 人</span>`; btn.disabled=false; }
+  if(lim===0) si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift}</strong> 📆 ${date}<br><span style="color:var(--text-dim);">此日不開放</span>`;
+  else if(cnt===0) si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift}</strong> 📆 ${date}<br>👥 0人申請，上限 ${lim} 人`;
+  else if(cnt<=lim) si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift}</strong> 📆 ${date}<br>👥 ${cnt}人申請，上限 ${lim} 人<br><span style="color:var(--green);">✓ 未超限，直接錄取</span>`;
+  else{ si.innerHTML=`🏷️ <strong style="color:var(--accent)">${shift}</strong> 📆 ${date}<br>👥 <strong style="color:var(--red)">${cnt}人</strong>申請，上限 ${lim} 人<br><span style="color:var(--accent2);">⚠ 超限，需抽出 ${lim} 人</span>`; btn.disabled=false; }
 }
 function startSingleLottery(){
   const pid=parseInt(document.getElementById('lottery-period').value);
@@ -1483,7 +2076,7 @@ function showResult(){
   document.getElementById('btn-draw').style.display='none';
   document.getElementById('btn-auto').style.display='none';
   document.getElementById('stage-title').textContent='🎉 本場完成';
-  document.getElementById('stage-subtitle').textContent=`${shift} 班｜${date}｜${drawn.length} 人錄取`;
+  document.getElementById('stage-subtitle').textContent=`${shift}｜${date}｜${drawn.length} 人錄取`;
 
   // Build result object
   const resultObj={periodName:period.name,periodStart:period.start,periodEnd:period.end,shift,date,limit,total:participants.length,
@@ -1501,10 +2094,10 @@ function showResult(){
 
   // Render result list
   let html='';
-  drawn.forEach((e,i)=>{html+=`<div class="result-item winner"><span class="result-rank top">#${String(i+1).padStart(2,'0')}</span><span style="flex:1">${e.name}</span><span class="badge b-yellow">${e.dept} 班</span><span class="badge b-green" style="margin-left:6px;">✓ 錄取</span></div>`;});
+  drawn.forEach((e,i)=>{html+=`<div class="result-item winner"><span class="result-rank top">#${String(i+1).padStart(2,'0')}</span><span style="flex:1">${e.name}</span><span class="badge b-yellow">${e.dept}</span><span class="badge b-green" style="margin-left:6px;">✓ 錄取</span></div>`;});
   if(losers.length){
     html+=`<div style="margin:10px 0 5px;font-family:'Space Mono',monospace;font-size:.6rem;color:var(--text-dim);">未錄取</div>`;
-    losers.forEach(e=>{html+=`<div class="result-item loser"><span class="result-rank">—</span><span style="flex:1">${e.name}</span><span class="badge b-yellow">${e.dept} 班</span><span class="badge b-gray" style="margin-left:6px;">未錄取</span></div>`;});
+    losers.forEach(e=>{html+=`<div class="result-item loser"><span class="result-rank">—</span><span style="flex:1">${e.name}</span><span class="badge b-yellow">${e.dept}</span><span class="badge b-gray" style="margin-left:6px;">未錄取</span></div>`;});
   }
   document.getElementById('result-list').innerHTML=html;
   document.getElementById('result-section').style.display='block';
@@ -1557,16 +2150,14 @@ function renderExtraLeave(){
   document.getElementById('stat-el-approved').textContent=thisMonthLeaves.filter(l=>l.status==='approved').length;
 
   if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">🏖️</div>尚無請假申請</div>';return;}
-  const quota=data.monthlyQuota||8;
-  el.innerHTML=`<table><thead><tr><th>員工</th><th>班別</th><th>日期</th><th>原因</th><th>本月已用</th><th>狀態</th><th>操作</th></tr></thead><tbody>`+
+  el.innerHTML=`<table><thead><tr><th>員工</th><th>班別</th><th>日期</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead><tbody>`+
     list.map(l=>{
-      const used=getUsedDays(l.empId, getMonthKey(l.date));
       const statusBadge=l.status==='pending'?'<span class="badge b-orange">待審核</span>':l.status==='approved'?'<span class="badge b-green">已核准</span>':'<span class="badge b-red">已拒絕</span>';
       const actions=l.status==='pending'
-        ?`<button class="btn" style="padding:3px 9px;font-size:.6rem;background:var(--green);color:#111;" onclick="reviewLeave(${l.id},'approved')">核准</button>
-           <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;margin-left:4px;" onclick="reviewLeave(${l.id},'rejected')">拒絕</button>`
-        :`<button class="btn btn-ghost" style="padding:3px 9px;font-size:.6rem;" onclick="deleteLeave(${l.id})">刪除</button>`;
-      return `<tr><td>${l.empName}</td><td><span class="badge b-yellow">${l.shift} 班</span></td><td style="font-family:'Space Mono',monospace;font-size:.76rem;">${l.date}</td><td style="font-size:.8rem;">${l.reason||'—'}</td><td style="font-family:'Space Mono',monospace;font-size:.74rem;color:${used>=quota?'var(--red)':'var(--green)'};">${used}/${quota}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
+        ?`<button class="btn" style="padding:3px 9px;font-size:.6rem;background:var(--green);color:#111;" onclick="reviewLeave('${l.id}','approved')">核准</button>
+           <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;margin-left:4px;" onclick="reviewLeave('${l.id}','rejected')">拒絕</button>`
+        :`<button class="btn btn-ghost" style="padding:3px 9px;font-size:.6rem;" onclick="deleteLeave('${l.id}')">刪除</button>`;
+      return `<tr><td>${l.empName}</td><td><span class="badge b-yellow">${l.shift}</span></td><td style="font-family:'Space Mono',monospace;font-size:.76rem;">${l.date}</td><td style="font-size:.8rem;">${l.reason||'—'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
     }).join('')+'</tbody></table>';
 }
 
@@ -1591,23 +2182,7 @@ function renderSelfExtraLeave(eid){
   const emp=data.employees.find(e=>e.id===eid);
   if(!emp)return;
   document.getElementById('self-el-section').style.display='block';
-  const quota=data.monthlyQuota||8;
-  document.getElementById('self-quota-display').textContent=quota;
-  const now=new Date();
-  const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  const used=getUsedDays(eid,thisMonth);
-  const rem=Math.max(0,quota-used);
-  document.getElementById('self-el-quota-bar').innerHTML=`
-    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-        <span style="font-size:.82rem;">本月額外請假額度</span>
-        <span style="font-family:'Space Mono',monospace;font-size:.82rem;color:${rem===0?'var(--red)':'var(--green)'};">${used} / ${quota} 天已用</span>
-      </div>
-      <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden;">
-        <div style="height:100%;width:${Math.min(100,used/quota*100)}%;background:${used>=quota?'var(--red)':'var(--accent)'};transition:width .3s;border-radius:3px;"></div>
-      </div>
-      ${rem===0?'<div style="margin-top:6px;font-size:.76rem;color:var(--red);">本月額度已用完</div>':''}
-    </div>`;
+  document.getElementById('self-el-quota-bar').innerHTML='';
   // history
   const myLeaves=(data.extraLeaves||[]).filter(l=>l.empId===eid).sort((a,b)=>b.appliedAt.localeCompare(a.appliedAt));
   const histEl=document.getElementById('self-el-history');
@@ -1620,7 +2195,7 @@ function renderSelfExtraLeave(eid){
         <span style="font-family:'Space Mono',monospace;font-size:.76rem;">${l.date}</span>
         <span style="font-size:.78rem;flex:1;color:var(--text-dim);">${l.reason||'—'}</span>
         ${badge}
-        ${l.status==='pending'?`<button class="btn btn-danger" style="padding:2px 8px;font-size:.58rem;" onclick="selfCancelLeave(${l.id},${eid})">取消</button>`:''}
+        ${l.status==='pending'?`<button class="btn btn-danger" style="padding:2px 8px;font-size:.58rem;" onclick="selfCancelLeave('${l.id}',${eid})">取消</button>`:''}
       </div>`;
     }).join('');
   }else{ histEl.style.display='none'; }
@@ -1633,13 +2208,9 @@ function selfSubmitExtraLeave(){
   if(!date)return toast('請選擇日期',true);
   const emp=data.employees.find(e=>e.id===eid);
   if(!emp)return;
-  const quota=data.monthlyQuota||8;
-  const used=getUsedDays(eid,getMonthKey(date));
-  if(used>=quota)return toast(`本月額度已用完（${used}/${quota}）`,true);
-  // check duplicate
   if((data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===date&&l.status!=='rejected')) return toast('此日期已申請過',true);
   if(!data.extraLeaves) data.extraLeaves=[];
-  data.extraLeaves.push({id:Date.now(),empId:eid,empName:emp.name,shift:emp.dept,date,reason,status:'pending',appliedAt:new Date().toLocaleString('zh-TW')});
+  data.extraLeaves.push({id:`${Date.now()}_${Math.floor(Math.random()*1000000)}`,empId:eid,empName:emp.name,shift:emp.dept,date,reason,status:'pending',appliedAt:new Date().toLocaleString('zh-TW')});
   save();
   document.getElementById('self-el-date').value='';
   document.getElementById('self-el-reason').value='';
@@ -1658,11 +2229,11 @@ function renderHistory(){
   if(!data.history.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>尚無抽籤紀錄</div>';return;}
   el.innerHTML=data.history.map(r=>`<div class="history-item" onclick="this.classList.toggle('open')">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-weight:600;font-size:.91rem;">${r.periodName}</div><span class="badge b-orange">${r.drawnAt}</span></div>
-    <div style="font-size:.76rem;color:var(--text-dim);">📅 ${r.date}　🏷️ ${r.shift||'—'} 班　👥 抽籤 ${r.total} 人，錄取 ${r.winners.length}/${r.limit} 人</div>
+    <div style="font-size:.76rem;color:var(--text-dim);">📅 ${r.date}　🏷️ ${r.shift||'—'}　👥 抽籤 ${r.total} 人，錄取 ${r.winners.length}/${r.limit} 人</div>
     <div class="history-detail">
       <div style="margin-bottom:7px;"><div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:5px;">錄取名單</div>
-        ${r.winners.map((w,i)=>`<span class="badge b-green" style="margin:2px;">#${i+1} ${w.name}（${w.dept} 班）</span>`).join('')}</div>
-      ${r.losers.length?`<div><div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:5px;">未錄取</div>${r.losers.map(w=>`<span class="badge b-gray" style="margin:2px;">${w.name}（${w.dept} 班）</span>`).join('')}</div>`:''}
+        ${r.winners.map((w,i)=>`<span class="badge b-green" style="margin:2px;">#${i+1} ${w.name}（${w.dept}）</span>`).join('')}</div>
+      ${r.losers.length?`<div><div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:5px;">未錄取</div>${r.losers.map(w=>`<span class="badge b-gray" style="margin:2px;">${w.name}（${w.dept}）</span>`).join('')}</div>`:''}
     </div>
   </div>`).join('');
 }
@@ -1694,7 +2265,7 @@ function initSchedule(){
   const ss=document.getElementById('sch-shift');
   const sv=ss.value;
   ss.innerHTML='<option value="">全部班別</option>';
-  data.departments.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+' 班';ss.appendChild(o);});
+  data.departments.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+'';ss.appendChild(o);});
   if(sv) ss.value=sv;
   renderSchedule();
 }
@@ -1828,57 +2399,103 @@ function buildStatusMap(period){
 function renderSchedule(){
   const pid=parseInt(document.getElementById('sch-period').value);
   const filterShift=document.getElementById('sch-shift').value;
+  const filterGender=document.getElementById('sch-gender')?.value||'';
   if(!pid){document.getElementById('sch-calendar-table').innerHTML='<div class="empty"><div class="empty-icon">📊</div>請先選擇假期</div>';document.getElementById('sch-shift-table').innerHTML='';return;}
   const period=data.periods.find(p=>p.id===pid);
   if(!period)return;
   const dates=getDates(period.start,period.end);
   const shifts=filterShift?[filterShift]:data.departments;
   const statusMap=buildStatusMap(period);
-  const allEmps=data.employees.filter(e=>shifts.includes(e.dept));
+  const allEmps=data.employees.filter(e=>{
+    if(!shifts.includes(e.dept)) return false;
+    if(filterGender && (e.gender||'male')!==filterGender) return false;
+    return true;
+  });
   const ON_LEAVE=['lottery','direct','extra'];
   const STATUS_ICON={lottery:'●',direct:'●',extra:'▲',loser:'✕',pending:'○'};
   const STATUS_CLASS={lottery:'cell-lottery',direct:'cell-direct',extra:'cell-extra',loser:'cell-loser',pending:'cell-pending'};
   const STATUS_LABEL={lottery:'抽籤錄取',direct:'休假',extra:'額外假',loser:'未中籤',pending:'申請中'};
   if(_schView==='calendar'){
-    let html='<table class="sch-table"><thead><tr><th class="emp-col">姓名</th><th class="emp-col">班別</th>';
-    dates.forEach(d=>{html+=`<th style="${isWk(d)?'color:var(--accent2)':''}">${fd(d)}</th>`;});
-    html+='<th>可休天數</th></tr></thead><tbody>';
+    // 日期為列、員工為欄
+    let html='<div style="overflow-x:auto;"><table class="sch-table"><thead>';
+    // 第一列：班別群組
+    html+='<tr><th style="text-align:left;padding:6px 10px;white-space:nowrap;min-width:90px;">日期</th>';
     shifts.forEach(shift=>{
       const emps=allEmps.filter(e=>e.dept===shift);
       if(!emps.length)return;
-      html+=`<tr><td colspan="${dates.length+3}" style="background:rgba(232,200,74,.06);padding:5px 10px;font-family:'Space Mono',monospace;font-size:.64rem;color:var(--accent);letter-spacing:.1em;">${shift} 班</td></tr>`;
-      emps.forEach(emp=>{
-        const empMap=statusMap[emp.id]||{};
-        let count=0;
-        html+=`<tr><td class="emp-name">${emp.name}${isLoserOfPeriod(period,emp.id).length?`<button onclick="adminMakeup(${pid},${emp.id})" style="margin-left:5px;font-size:.52rem;padding:1px 5px;background:rgba(122,180,240,.15);border:1px solid rgba(122,180,240,.4);border-radius:2px;cursor:pointer;color:#7ab4f0;vertical-align:middle;">補假</button>`:''}</td><td style="text-align:center;padding:4px 8px;"><span class="badge b-yellow">${emp.dept}</span></td>`;
-        dates.forEach(d=>{
-          const st=empMap[d];
-          if(st&&ON_LEAVE.includes(st))count++;
-          const cls=st?STATUS_CLASS[st]:'';
-          const icon=st?STATUS_ICON[st]:'';
-          const title=st?STATUS_LABEL[st]:'';
-          html+=`<td class="${cls}" title="${title}"><span class="cell-dot">${icon}</span></td>`;
-        });
-        const loserDates=isLoserOfPeriod(period,emp.id);
-        const myMakeups=(data.makeupLeaves||[]).filter(m=>m.periodId===pid&&m.empId===emp.id);
-        const quota=getMakeupQuota(period,emp.id);
-        const used=getMakeupUsed(period,emp.id);
-        const remaining=quota-used;
-        let extra='';
-        if(loserDates.length){
-          if(used>0) extra=`<br><span style="font-size:.58rem;color:#7ab4f0;">補${used}天</span>`;
-          if(remaining>0) extra+=`<br><span style="font-size:.58rem;color:var(--accent2);">可補${remaining}天</span>`;
-        }
-        html+=`<td style="text-align:center;font-family:'Space Mono',monospace;font-size:.72rem;color:${count>0?'var(--accent)':'var(--text-dim)'};">${count}${extra}</td></tr>`;
+      html+=`<th colspan="${emps.length}" style="text-align:center;padding:5px 6px;background:rgba(232,200,74,.08);color:var(--accent);font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;border-left:2px solid var(--border);">${shift}</th>`;
+    });
+    html+='</tr>';
+    // 第二列：員工名字
+    html+='<tr><th style="padding:4px 10px;font-size:.58rem;color:var(--text-dim);font-weight:400;"></th>';
+    shifts.forEach(shift=>{
+      const emps=allEmps.filter(e=>e.dept===shift);
+      if(!emps.length)return;
+      emps.forEach((emp,i)=>{
+        const isLoser=isLoserOfPeriod(period,emp.id).length>0;
+        html+=`<th style="text-align:center;padding:4px 5px;min-width:44px;font-size:.66rem;font-weight:600;white-space:nowrap;${i===0?'border-left:2px solid var(--border)':''}">
+          ${emp.name}
+          ${isLoser?`<br><button onclick="adminMakeup(${pid},${emp.id})" style="font-size:.48rem;padding:1px 3px;background:rgba(122,180,240,.15);border:1px solid rgba(122,180,240,.4);border-radius:2px;cursor:pointer;color:#7ab4f0;">補假</button>`:''}
+        </th>`;
       });
     });
-    html+='</tbody></table>';
+    html+='</tr></thead><tbody>';
+
+    dates.forEach(d=>{
+      const dt=period.dateTypes||{};
+      const dayType=dt[d]||(isWk(d)?'holiday':'weekday');
+      const isWkd=dayType==='holiday';
+      const isClosed=dayType==='closed';
+      // Build shift limit summary for this date
+      let shiftLimSummary='';
+      shifts.forEach(shift=>{
+        const emps=allEmps.filter(e=>e.dept===shift);
+        if(!emps.length)return;
+        const lim=getLim(period,shift,d);
+        const confirmed=getConfirmedOnDate(period,shift,d);
+        const isFull=lim>0&&confirmed>=lim;
+        const limLabel=lim===0?'—':`${confirmed}/${lim}${isFull?'🔒':''}`;
+        const limColor=lim===0?'var(--text-dim)':isFull?'var(--red)':'var(--green)';
+        shiftLimSummary+=`<span style="font-family:'Space Mono',monospace;font-size:.58rem;color:${limColor};margin-right:8px;">${shift}:${limLabel}</span>`;
+      });
+      const rowBg=isWkd?'background:rgba(232,200,74,.04);':isClosed?'background:rgba(232,74,74,.04);':'';
+      html+=`<tr${rowBg?` style="${rowBg}"`:''}><td style="padding:5px 10px;font-family:'Space Mono',monospace;font-size:.68rem;white-space:nowrap;${isWkd?'color:var(--accent2)':isClosed?'color:var(--red);opacity:.5':''}">${fd(d)}<br><span style="font-size:.55rem;color:var(--text-dim);">${shiftLimSummary}</span></td>`;
+      shifts.forEach(shift=>{
+        const emps=allEmps.filter(e=>e.dept===shift);
+        if(!emps.length)return;
+        const lim=getLim(period,shift,d);
+        emps.forEach((emp,i)=>{
+          const st=(statusMap[emp.id]||{})[d];
+          const cls=st?STATUS_CLASS[st]:'';
+          const title=st?STATUS_LABEL[st]:'';
+          const icon=lim===0?'—':st?STATUS_ICON[st]:'';
+          const borderStyle=i===0?'border-left:2px solid var(--border)':'';
+          const closedStyle=lim===0?'opacity:.3':'';
+          const wkdBg=isWkd&&!st?'background:rgba(232,200,74,.04);':isClosed&&!st?'background:rgba(232,74,74,.04);':'';
+          html+=`<td class="${cls}" title="${title}" style="${borderStyle};${closedStyle};${wkdBg}"><span class="cell-dot">${icon}</span></td>`;
+        });
+      });
+      html+='</tr>';
+    });
+
+    // Footer: 可休天數
+    html+='<tr style="border-top:2px solid var(--border);"><td style="padding:5px 10px;font-family:\'Space Mono\',monospace;font-size:.6rem;color:var(--text-dim);">可休天數</td>';
+    shifts.forEach(shift=>{
+      const emps=allEmps.filter(e=>e.dept===shift);
+      if(!emps.length)return;
+      emps.forEach((emp,i)=>{
+        const empMap=statusMap[emp.id]||{};
+        const count=dates.filter(d=>ON_LEAVE.includes(empMap[d])).length;
+        html+=`<td style="text-align:center;font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;color:${count>0?'var(--accent)':'var(--text-dim)'};${i===0?'border-left:2px solid var(--border)':''}">${count}</td>`;
+      });
+    });
+    html+='</tr></tbody></table></div>';
     document.getElementById('sch-calendar-table').innerHTML=html;
   } else {
     let html='';
     shifts.forEach(shift=>{
       const emps=data.employees.filter(e=>e.dept===shift);
-      html+=`<div class="sch-shift-group"><div class="sch-shift-group-title">${shift} 班</div>`;
+      html+=`<div class="sch-shift-group"><div class="sch-shift-group-title">${shift}</div>`;
       html+='<div style="overflow-x:auto;"><table class="sch-table" style="width:100%;"><thead><tr><th style="text-align:left;padding:5px 10px;min-width:70px;">日期</th><th style="text-align:center;">已/上限</th><th style="text-align:left;min-width:220px;">人員</th></tr></thead><tbody>';
       dates.forEach(d=>{
         const lim=getLim(period,shift,d);if(lim===0)return;
@@ -1991,19 +2608,124 @@ function selfCancelMakeup(mid,pid,eid){
 }
 
 
+// ══ ACCOUNTS MANAGEMENT ══
+function renderAccounts(){
+  const admins=data.admins||[];
+  const el=document.getElementById('admin-list');
+  if(!admins.length){
+    el.innerHTML='<div style="font-size:.8rem;color:var(--text-dim);">尚無管理員帳號</div>';
+  } else {
+    el.innerHTML=admins.map(a=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);gap:8px;">
+        <span style="font-family:'Space Mono',monospace;font-size:.78rem;">👤 ${a.username}</span>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-ghost" style="padding:3px 9px;font-size:.6rem;" onclick="changeAdminPw('${a.id}')">改密碼</button>
+          <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="removeAdmin('${a.id}')">刪除</button>
+        </div>
+      </div>`).join('');
+  }
+  const sel=document.getElementById('pin-emp-select');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">-- 選擇員工 --</option>';
+  data.employees.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=`${e.name}（${e.dept}）`;sel.appendChild(o);});
+  if(cur)sel.value=cur;
+  onPinEmpChange();
+}
+function addAdmin(){
+  const user=document.getElementById('new-admin-user').value.trim();
+  const pw=document.getElementById('new-admin-pw').value.trim();
+  if(!user||!pw)return toast('請輸入帳號和密碼',true);
+  const sa=getSuperAdmin();
+  if(sa&&user===sa.username)return toast('不可使用此帳號名稱',true);
+  if((data.admins||[]).find(a=>a.username===user))return toast('帳號已存在',true);
+  if(!data.admins)data.admins=[];
+  data.admins.push({id:`${Date.now()}`,username:user,password:pw});
+  save();renderAccounts();
+  document.getElementById('new-admin-user').value='';
+  document.getElementById('new-admin-pw').value='';
+  toast(`✓ 管理員「${user}」已新增`);
+}
+function changeAdminPw(id){
+  const admin=(data.admins||[]).find(a=>a.id===id);
+  if(!admin)return;
+  document.getElementById('modal-title').textContent=`修改「${admin.username}」密碼`;
+  document.getElementById('modal-msg').innerHTML=`
+    <div class="field" style="margin-bottom:10px;"><label>新密碼</label>
+      <input type="password" id="change-admin-pw-input" placeholder="輸入新密碼" style="width:100%;">
+    </div>
+    <div id="change-admin-pw-err" style="display:none;font-size:.76rem;color:var(--red);"></div>`;
+  document.getElementById('modal-confirm').textContent='確認修改';
+  document.getElementById('modal-confirm').style.display='';
+  document.getElementById('modal').classList.add('show');
+  _mcb=()=>{
+    const np=document.getElementById('change-admin-pw-input').value.trim();
+    const err=document.getElementById('change-admin-pw-err');
+    if(!np){err.textContent='請輸入新密碼';err.style.display='block';return false;}
+    admin.password=np;save();toast(`✓ 「${admin.username}」密碼已更新`);
+  };
+}
+function removeAdmin(id){
+  showModal('刪除管理員','確定要刪除此管理員帳號？',()=>{
+    data.admins=(data.admins||[]).filter(a=>a.id!==id);
+    save();renderAccounts();toast('✓ 已刪除');
+  });
+}
+function onPinEmpChange(){
+  const eid=parseInt(document.getElementById('pin-emp-select').value);
+  const emp=data.employees.find(e=>e.id===eid);
+  const info=document.getElementById('pin-current');
+  const input=document.getElementById('pin-set-input');
+  if(!emp){info.textContent='';if(input)input.value='';return;}
+  info.innerHTML=emp.pin
+    ?`<span style="color:var(--green);">✓ 已設定 PIN 碼</span>`
+    :`<span style="color:var(--text-dim);">尚未設定</span>`;
+  if(input)input.value='';
+}
+function setEmpPin(){
+  const eid=parseInt(document.getElementById('pin-emp-select').value);
+  const pin=document.getElementById('pin-set-input').value.trim();
+  const emp=data.employees.find(e=>e.id===eid);
+  if(!emp)return toast('請選擇員工',true);
+  if(!pin||pin.length<2)return toast('PIN 碼至少需要 2 個字元',true);
+  emp.pin=pin;save();onPinEmpChange();
+  toast(`✓ ${emp.name} 的 PIN 碼已設定`);
+}
+function resetEmpPin(){
+  const eid=parseInt(document.getElementById('pin-emp-select').value);
+  const emp=data.employees.find(e=>e.id===eid);
+  if(!emp)return toast('請選擇員工',true);
+  if(!emp.pin)return toast('此員工尚未設定 PIN 碼',true);
+  showModal('重置 PIN 碼',`確定要清除 ${emp.name} 的 PIN 碼？員工下次登入時需重新設定。`,()=>{
+    emp.pin=null;save();onPinEmpChange();
+    toast(`✓ ${emp.name} 的 PIN 碼已重置`);
+  });
+}
+
 // ══ INIT ══
 function refreshElSelects(){
   const fs=document.getElementById('el-filter-shift');
-  if(fs){const c=fs.value;fs.innerHTML='<option value="">全部班別</option>';data.departments.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+' 班';fs.appendChild(o);});if(c)fs.value=c;}
+  if(fs){const c=fs.value;fs.innerHTML='<option value="">全部班別</option>';data.departments.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d+'';fs.appendChild(o);});if(c)fs.value=c;}
   const quota=data.monthlyQuota||8;
   const qd=document.getElementById('quota-display');if(qd)qd.textContent=quota;
   const mi=document.getElementById('monthly-quota');if(mi)mi.value=quota;
+  const aqd=document.getElementById('app-quota-display');if(aqd)aqd.textContent=quota;
 }
 function bootUI(){
-  renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+  if(USE_LOCAL){
+    _currentRole='superadmin'; _currentAdminUser='superadmin';
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('main-header').style.display='flex';
+    document.getElementById('header-user-info').textContent='🔧 超級管理員（本地測試）';
+    document.getElementById('btn-change-pin').style.display='none';
+    document.getElementById('local-mode-banner').style.display='block';
+    document.getElementById('tab-accounts').style.display='inline-block';
+    document.getElementById('admin-view').style.display='block';
+    renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+  } else {
+    showLoginScreen();
+  }
 }
 initData();
-</script>
 </script>
 </body>
 </html>
