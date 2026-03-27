@@ -2812,6 +2812,11 @@ function exportScheduleExcel(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'假表');
   const ts=new Date().toISOString().slice(0,10);
+  // 診斷：確認樣式是否存在
+  const testAddr=XLSX.utils.encode_cell({r:4,c:2});
+  console.log('[XLSX診斷] 版本:',XLSX.version,'_xlsxStyleSupport:',window._xlsxStyleSupport);
+  console.log('[XLSX診斷] 測試cell樣式:',JSON.stringify(ws[testAddr]?.s));
+  console.log('[XLSX診斷] 測試cell值:',ws[testAddr]?.v);
   XLSX.writeFile(wb,`假表_${period.name}_${ts}.xlsx`,{bookType:'xlsx',bookSST:false,type:'binary',cellStyles:true});
   toast(`✓ Excel 已匯出${window._xlsxStyleSupport?'（含完整格式）':'（無格式，請於網頁版使用以取得完整格式）'}`);
 }
