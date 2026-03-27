@@ -218,8 +218,10 @@ tr:hover td{background:rgba(255,255,255,.018);}
         var addr=XLSX.utils.encode_cell({r:0,c:0});
         ws[addr].s={font:{sz:12}};
         XLSX.utils.book_append_sheet(wb,ws,'t');
-        // 若 .s 被保留代表支援樣式
-        window._xlsxStyleSupport=!!(ws[addr].s&&ws[addr].s.font);
+        // 用版本號判斷是否支援樣式（0.20+ 支援）
+        var ver=XLSX.version||'0';
+        var major=parseInt(ver.split('.')[1]||0);
+        window._xlsxStyleSupport=major>=20;
       }catch(e){window._xlsxStyleSupport=false;}
     };
     s.onerror=function(){tryLoad(urls,idx+1);};
@@ -2778,17 +2780,31 @@ function exportScheduleExcel(){
 
   // ── 樣式（僅支援樣式的版本才套用）──
   if(window._xlsxStyleSupport){
-    const thin={style:'thin',color:{rgb:'FF000000'}};
-    const border={top:thin,bottom:thin,left:thin,right:thin};
-    const baseStyle={font:{name:'新細明體',sz:12},alignment:{horizontal:'center',vertical:'center'},border};
-    const holidayStyle={...baseStyle,fill:{patternType:'solid',fgColor:{rgb:COLOR_HOLIDAY}}};
+    // 每次建立新物件避免共享參考問題
+    const mkBorder=()=>({
+      top:{style:'thin',color:{rgb:'FF000000'}},
+      bottom:{style:'thin',color:{rgb:'FF000000'}},
+      left:{style:'thin',color:{rgb:'FF000000'}},
+      right:{style:'thin',color:{rgb:'FF000000'}}
+    });
+    const mkBase=()=>({
+      font:{name:'新細明體',sz:12},
+      alignment:{horizontal:'center',vertical:'center'},
+      border:mkBorder()
+    });
+    const mkHoliday=()=>({
+      font:{name:'新細明體',sz:12},
+      alignment:{horizontal:'center',vertical:'center'},
+      border:mkBorder(),
+      fill:{patternType:'solid',fgColor:{rgb:COLOR_HOLIDAY},bgColor:{indexed:64}}
+    });
 
     for(let r=0;r<totalRows;r++){
       for(let c=0;c<totalCols;c++){
         const addr=XLSX.utils.encode_cell({r,c});
-        if(!ws[addr]) ws[addr]={t:'z',v:''};
+        if(!ws[addr]) ws[addr]={t:'s',v:''};
         const isHoliday=r>=4&&(r-4)<dateRowIsHoliday.length&&c>=2&&dateRowIsHoliday[r-4];
-        ws[addr].s=isHoliday?holidayStyle:baseStyle;
+        ws[addr].s=isHoliday?mkHoliday():mkBase();
       }
     }
   }
@@ -2796,7 +2812,7 @@ function exportScheduleExcel(){
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'假表');
   const ts=new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb,`假表_${period.name}_${ts}.xlsx`);
+  XLSX.writeFile(wb,`假表_${period.name}_${ts}.xlsx`,{bookType:'xlsx',bookSST:false,type:'binary',cellStyles:true});
   toast(`✓ Excel 已匯出${window._xlsxStyleSupport?'（含完整格式）':'（無格式，請於網頁版使用以取得完整格式）'}`);
 }
 
