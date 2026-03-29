@@ -439,6 +439,12 @@ tr:hover td{background:rgba(255,255,255,.018);}
     <div id="panel-periods" class="panel">
       <div class="section-title">假期設定</div>
       <div class="card">
+        <div class="section-title">每日未出勤上限設定</div>
+        <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);margin-bottom:12px;">超過此上限（排假＋額外請假）的申請仍可核准，但會顯示「當日超休，須出示證明」警示。留空表示不限制。</div>
+        <div id="daily-limit-table" style="overflow-x:auto;"></div>
+        <button class="btn btn-primary" style="margin-top:12px;font-size:.7rem;padding:7px 16px;" onclick="saveDailyLimits()">儲存上限設定</button>
+      </div>
+      <div class="card">
         <div class="section-title">新增假期區間</div>
 
         <!-- Step 1: 基本資訊 -->
@@ -452,13 +458,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
                 <option value="關新店">僅限關新店</option>
               </select>
             </div>
-            <div class="field"><label>開放職稱</label>
-              <select id="period-gender" style="width:100%;">
-                <option value="">全部</option>
-                <option value="male">僅限足師</option>
-                <option value="female">僅限體師</option>
-              </select>
-            </div>
+
           </div>
           <div style="display:flex;gap:9px;">
             <div class="field" style="flex:1"><label>開始日期</label><input type="date" id="period-start" onchange="buildPeriodSetup()"></div>
@@ -470,11 +470,19 @@ tr:hover td{background:rgba(255,255,255,.018);}
         <div class="section-title">① 設定各班別預設人數上限</div>
         <div style="overflow-x:auto;margin-bottom:10px;">
           <table style="font-size:.8rem;width:auto;">
-            <thead><tr>
-              <th style="text-align:left;padding:7px 12px;white-space:nowrap;">班別</th>
-              <th style="text-align:center;padding:7px 14px;min-width:90px;">平日上限</th>
-              <th style="text-align:center;padding:7px 14px;min-width:90px;">假日上限</th>
-            </tr></thead>
+            <thead>
+              <tr>
+                <th style="text-align:left;padding:7px 12px;white-space:nowrap;" rowspan="2">班別</th>
+                <th style="text-align:center;padding:5px 14px;color:#7ab4f0;" colspan="2">足師</th>
+                <th style="text-align:center;padding:5px 14px;color:#f07ab4;" colspan="2">體師</th>
+              </tr>
+              <tr>
+                <th style="text-align:center;padding:5px 10px;min-width:72px;">平日</th>
+                <th style="text-align:center;padding:5px 10px;min-width:72px;">假日</th>
+                <th style="text-align:center;padding:5px 10px;min-width:72px;">平日</th>
+                <th style="text-align:center;padding:5px 10px;min-width:72px;">假日</th>
+              </tr>
+            </thead>
             <tbody id="shift-defaults-tbody"></tbody>
           </table>
         </div>
@@ -534,7 +542,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
                 <select id="app-period" onchange="onAppPeriodChange()"><option value="">-- 選擇假期 --</option></select>
               </div>
               <div class="field"><label>選擇員工</label>
-                <select id="app-emp"><option value="">-- 先選假期 --</option></select>
+                <select id="app-emp" onchange="onAppEmpChange()"><option value="">-- 先選假期 --</option></select>
               </div>
             </div>
             <div class="field"><label>申請日期（可多選）</label>
@@ -594,19 +602,13 @@ tr:hover td{background:rgba(255,255,255,.018);}
               </div>
             </div>
             <div>
+              <div style="font-family:'Space Mono',monospace;font-size:.64rem;letter-spacing:.1em;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;">目前已請假天數</div>
               <div id="proxy-el-quota-info" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-size:.82rem;color:var(--text-dim);">
                 請先選擇員工
               </div>
             </div>
           </div>
           <button class="btn btn-primary" onclick="addProxyExtraLeave()">新增額外請假</button>
-        </div>
-        <!-- 每日未出勤上限設定 -->
-        <div class="card">
-          <div class="section-title">每日未出勤上限設定</div>
-          <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);margin-bottom:12px;">超過此上限（排假＋額外請假）的申請仍可核准，但會顯示「當日超休，須出示證明」警示。留空表示不限制。</div>
-          <div id="daily-limit-table" style="overflow-x:auto;"></div>
-          <button class="btn btn-primary" style="margin-top:12px;font-size:.7rem;padding:7px 16px;" onclick="saveDailyLimits()">儲存上限設定</button>
         </div>
         <!-- 請假申請列表 -->
         <div class="card">
@@ -1387,7 +1389,7 @@ function switchTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+name).classList.add('active');
   if(name==='employees'){renderDeptOptions();renderDeptList();renderEmployees();updateStats();}
-  if(name==='periods'){renderPeriods();renderShiftDefaults();}
+  if(name==='periods'){renderPeriods();renderShiftDefaults();renderDailyLimitTable();}
   if(name==='applications'){refreshAppSelects();renderApplications();refreshElSelects();renderExtraLeave();renderLongLeaves();renderDailyLimitTable();}
   if(name==='lottery'){refreshLotterySelects();resetLottery();}
 
@@ -1460,7 +1462,29 @@ function addEmployee(){
   if(!name)return toast('請輸入姓名',true);
   if(!dept)return toast('請選擇班別',true);
   if(data.employees.find(e=>e.name===name&&e.dept===dept))return toast('同班別已有此員工',true);
-  data.employees.push({id:Date.now(),name,dept,store,gender,empType});
+  // 新員工先加入（不設 order），再依排序規則重新分配所有人的 order
+  const newEmp={id:Date.now(),name,dept,store,gender,empType};
+  data.employees.push(newEmp);
+  // 重新依照排序規則分配 order：竹北優先→足師優先→班別順序→原有 order（保留手動拖曳）
+  const sorted=[...data.employees].sort((a,b)=>{
+    const sa=(a.store||'竹北店')=='竹北店'?0:1;
+    const sb=(b.store||'竹北店')=='竹北店'?0:1;
+    if(sa!==sb)return sa-sb;
+    const ga=(a.gender||'male')=='male'?0:1;
+    const gb=(b.gender||'male')=='male'?0:1;
+    if(ga!==gb)return ga-gb;
+    const da=data.departments.indexOf(a.dept);
+    const db=data.departments.indexOf(b.dept);
+    if(da!==db)return da-db;
+    // 同組內：已有 order 的保持原相對順序，新員工（無 order）排最後
+    const hasA=a.order!==undefined&&a!==newEmp;
+    const hasB=b.order!==undefined&&b!==newEmp;
+    if(hasA&&hasB)return a.order-b.order;
+    if(hasA)return -1;
+    if(hasB)return 1;
+    return 0;
+  });
+  sorted.forEach((e,i)=>{e.order=i;});
   save();renderEmployees();updateStats();document.getElementById('emp-name').value='';toast('✓ 員工已新增');
 }
 function removeEmployee(id){
@@ -1663,20 +1687,27 @@ function setAllDateType(type){
   });
 }
 
-let _shiftDefaults = {}; // { sh: { weekday: n, holiday: n } }
+let _shiftDefaults = {}; // { sh: { male_weekday: n, male_holiday: n, female_weekday: n, female_holiday: n } }
 
 function renderShiftDefaults(){
   const tbody=document.getElementById('shift-defaults-tbody');
   if(!tbody)return;
-  // 永遠重建（編輯模式需要顯示還原的值）
   data.departments.forEach(sh=>{
-    if(!_shiftDefaults[sh]) _shiftDefaults[sh]={weekday:1,holiday:1};
+    if(!_shiftDefaults[sh]) _shiftDefaults[sh]={male_weekday:1,male_holiday:1,female_weekday:1,female_holiday:1};
+    // 相容舊格式
+    const d=_shiftDefaults[sh];
+    if(d.weekday!==undefined&&d.male_weekday===undefined){
+      d.male_weekday=d.weekday;d.male_holiday=d.holiday;
+      d.female_weekday=d.weekday;d.female_holiday=d.holiday;
+    }
   });
-  const shifts=data.departments;
-  tbody.innerHTML=shifts.map(sh=>`<tr>
+  const inp=(sh,key)=>`<input type="number" min="0" value="${_shiftDefaults[sh][key]}" oninput="_shiftDefaults['${sh}']['${key}']=Math.max(0,parseInt(this.value)||0)" style="width:56px;padding:3px;text-align:center;font-family:'Space Mono',monospace;font-size:.76rem;">`;
+  tbody.innerHTML=data.departments.map(sh=>`<tr>
     <td style="padding:6px 12px;white-space:nowrap;"><span class="badge b-yellow">${sh}</span></td>
-    <td style="padding:5px 10px;text-align:center;"><input type="number" min="0" value="${_shiftDefaults[sh].weekday}" oninput="_shiftDefaults['${sh}'].weekday=Math.max(0,parseInt(this.value)||0)" style="width:58px;padding:4px;text-align:center;font-family:'Space Mono',monospace;font-size:.78rem;"></td>
-    <td style="padding:5px 10px;text-align:center;"><input type="number" min="0" value="${_shiftDefaults[sh].holiday}" oninput="_shiftDefaults['${sh}'].holiday=Math.max(0,parseInt(this.value)||0)" style="width:58px;padding:4px;text-align:center;font-family:'Space Mono',monospace;font-size:.78rem;"></td>
+    <td style="padding:4px 8px;text-align:center;">${inp(sh,'male_weekday')}</td>
+    <td style="padding:4px 8px;text-align:center;">${inp(sh,'male_holiday')}</td>
+    <td style="padding:4px 8px;text-align:center;">${inp(sh,'female_weekday')}</td>
+    <td style="padding:4px 8px;text-align:center;">${inp(sh,'female_holiday')}</td>
   </tr>`).join('');
 }
 
@@ -1687,15 +1718,16 @@ function applyDefaults(){
   const dates=getDates(start,end), shifts=data.departments;
   dates.forEach(d=>{ if(!(d in _dateTypes)) _dateTypes[d]=isWk(d)?'holiday':'weekday'; });
 
-  // Write from _shiftDefaults into _limits
+  // Write from _shiftDefaults into _limits（足師＋體師加總）
   shifts.forEach(sh=>{
-    if(!_shiftDefaults[sh]) _shiftDefaults[sh]={weekday:1,holiday:1};
+    if(!_shiftDefaults[sh]) _shiftDefaults[sh]={male_weekday:1,male_holiday:1,female_weekday:1,female_holiday:1};
     if(!_limits[sh]) _limits[sh]={};
-    const wkVal=_shiftDefaults[sh].weekday;
-    const hlVal=_shiftDefaults[sh].holiday;
     dates.forEach(d=>{
       const t=_dateTypes[d]||'weekday';
-      _limits[sh][d]=t==='closed'?0:t==='holiday'?hlVal:wkVal;
+      if(t==='closed'){_limits[sh][d]=0;return;}
+      const mVal=t==='holiday'?_shiftDefaults[sh].male_holiday:_shiftDefaults[sh].male_weekday;
+      const fVal=t==='holiday'?_shiftDefaults[sh].female_holiday:_shiftDefaults[sh].female_weekday;
+      _limits[sh][d]=(mVal||0)+(fVal||0);
     });
   });
 
@@ -1738,14 +1770,14 @@ function addPeriod(){
     });
   });
   const dateTypes={..._dateTypes};
-  const genderRestrict=document.getElementById('period-gender').value||'';
+  const genderRestrict='';
   const storeRestrict=document.getElementById('period-store').value||'';
   data.periods.push({id:Date.now(),name,start,end,limits,dateTypes,genderRestrict,storeRestrict});
   save();renderPeriods();updateStats();
   document.getElementById('period-name').value='';
   document.getElementById('period-start').value='';
   document.getElementById('period-end').value='';
-  document.getElementById('period-gender').value='';
+  
   document.getElementById('period-store').value='';
   document.getElementById('period-setup-wrap').style.display='none';
   _dateTypes={}; _limits={}; _shiftDefaults={};
@@ -1843,9 +1875,11 @@ function editPeriod(id){
   data.departments.forEach(sh=>{
     const wdVals=dates.filter(d=>(_dateTypes[d]||'weekday')==='weekday').map(d=>_limits[sh][d]).filter(v=>v!==undefined);
     const hlVals=dates.filter(d=>(_dateTypes[d]||'weekday')==='holiday').map(d=>_limits[sh][d]).filter(v=>v!==undefined);
+    const wdTotal=wdVals.length?wdVals[0]:2;
+    const hlTotal=hlVals.length?hlVals[0]:2;
     _shiftDefaults[sh]={
-      weekday: wdVals.length ? wdVals[0] : 1,
-      holiday: hlVals.length ? hlVals[0] : 1
+      male_weekday:Math.ceil(wdTotal/2),male_holiday:Math.ceil(hlTotal/2),
+      female_weekday:Math.floor(wdTotal/2),female_holiday:Math.floor(hlTotal/2)
     };
   });
 
@@ -1878,7 +1912,7 @@ function updatePeriod(){
     dates.forEach(d=>{ limits[sh][d]=(_limits[sh]&&_limits[sh][d]!==undefined)?_limits[sh][d]:1; });
   });
   const dateTypes={..._dateTypes};
-  const genderRestrict=document.getElementById('period-gender').value||'';
+  const genderRestrict='';
   const storeRestrict=document.getElementById('period-store').value||'';
   const idx=data.periods.findIndex(p=>p.id===_editingPeriodId);
   if(idx===-1)return toast('找不到假期',true);
@@ -2013,6 +2047,10 @@ function addProxyExtraLeave(){
   refreshElSelects();renderExtraLeave();
   if(document.getElementById('panel-schedule').classList.contains('active'))renderSchedule();
   toast(`✓ ${emp.name} ${date} 額外請假已新增（直接核准）`);
+}
+function onAppEmpChange(){
+  // 重新選擇員工時清除所有日期勾選
+  document.querySelectorAll('#app-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
 }
 function onAppPeriodChange(){
   const pid=parseInt(document.getElementById('app-period').value);
@@ -4158,10 +4196,16 @@ function publishSchedule(){
     periodStart:period.start,
     periodEnd:period.end,
     publishedAt:new Date().toLocaleString('zh-TW'),
+    publishedTs:Date.now(),
     filterShift,filterGender,filterStore,
     filteredEmpIds,
     statusMap:JSON.parse(JSON.stringify(filteredStatusMap))
   });
+  // 超過 12 筆時移除最早發布的
+  if(data.publishedSchedules.length>12){
+    data.publishedSchedules.sort((a,b)=>(a.publishedTs||0)-(b.publishedTs||0));
+    data.publishedSchedules.splice(0,data.publishedSchedules.length-12);
+  }
   save();
   // 更新發布狀態提示
   const el=document.getElementById('publish-status');
