@@ -833,31 +833,64 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
     <!-- 櫃檯管理 -->
     <div id="panel-counter" class="panel">
-      <div class="section-title">櫃檯管理 — 代為排假</div>
-      <div class="card">
-        <div class="section-title">選擇管理員與假期</div>
-        <div class="grid-2">
-          <div>
-            <div class="field"><label>管理員</label>
-              <select id="counter-admin" onchange="onCounterAdminChange()" style="width:100%;">
-                <option value="">-- 選擇管理員 --</option>
-              </select>
+      <div class="section-title">櫃檯管理</div>
+      <!-- 子分頁列 -->
+      <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;">
+        <button class="apptab active" id="ctab-leave" onclick="switchCounterTab('leave')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">📋 櫃檯排假</button>
+        <button class="apptab" id="ctab-staff" onclick="switchCounterTab('staff')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">👥 櫃檯人員</button>
+      </div>
+
+      <!-- 子分頁：櫃檯排假 -->
+      <div id="cpanel-leave">
+        <div class="card">
+          <div class="section-title">選擇管理員與假期</div>
+          <div class="grid-2">
+            <div>
+              <div class="field"><label>管理員</label>
+                <select id="counter-admin" onchange="onCounterAdminChange()" style="width:100%;">
+                  <option value="">-- 選擇管理員 --</option>
+                </select>
+              </div>
+              <div class="field"><label>選擇假期</label>
+                <select id="counter-period" onchange="onCounterPeriodChange()"><option value="">-- 選擇假期 --</option></select>
+              </div>
             </div>
-            <div class="field"><label>選擇假期</label>
-              <select id="counter-period" onchange="onCounterPeriodChange()"><option value="">-- 選擇假期 --</option></select>
+            <div class="field"><label>申請日期（可多選）</label>
+              <div id="counter-dates-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px;min-height:80px;max-height:170px;overflow-y:auto;">
+                <div style="color:var(--text-dim);font-size:.79rem;">請先選擇假期</div>
+              </div>
             </div>
           </div>
-          <div class="field"><label>申請日期（可多選）</label>
-            <div id="counter-dates-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px;min-height:80px;max-height:170px;overflow-y:auto;">
-              <div style="color:var(--text-dim);font-size:.79rem;">請先選擇假期</div>
-            </div>
+          <button class="btn btn-primary" onclick="addCounterApplication()">新增排假申請</button>
+        </div>
+        <div class="card">
+          <div class="section-title" style="margin-bottom:10px;">排假申請總覽</div>
+          <div id="counter-overview"></div>
+        </div>
+      </div>
+
+      <!-- 子分頁：櫃檯人員 -->
+      <div id="cpanel-staff" style="display:none;">
+        <div class="card">
+          <div class="section-title">設定櫃檯班別</div>
+          <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);margin-bottom:14px;">
+            早班：09:00–18:00（平日/假日相同）<br>
+            中班：13:00–22:00（平日/假日相同）<br>
+            晚班：15:00–24:00（平日）／17:00–02:00（假日）
+          </div>
+          <div id="counter-staff-list" style="margin-bottom:14px;"></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <select id="counter-staff-admin" style="min-width:160px;padding:6px 10px;font-size:.78rem;">
+              <option value="">-- 選擇管理員 --</option>
+            </select>
+            <select id="counter-staff-shift" style="padding:6px 10px;font-size:.78rem;">
+              <option value="早">早班</option>
+              <option value="中">中班</option>
+              <option value="晚">晚班</option>
+            </select>
+            <button class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;" onclick="addCounterStaff()">新增</button>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="addCounterApplication()">新增排假申請</button>
-      </div>
-      <div class="card">
-        <div class="section-title" style="margin-bottom:10px;">排假申請總覽</div>
-        <div id="counter-overview"></div>
       </div>
     </div>
 
@@ -1100,6 +1133,7 @@ function migrateData(d){
   if(!d.dailyLimits) d.dailyLimits={};
   if(!d.publishedSchedules) d.publishedSchedules=[];
   if(!d.counterApplications) d.counterApplications=[];
+  if(!d.counterStaff) d.counterStaff=[];
   // 清除所有假期的職稱限制
   if(d.periods) d.periods.forEach(p=>{ p.genderRestrict=''; });
   if(!Array.isArray(d.longLeaves)) d.longLeaves=[];
@@ -3595,17 +3629,32 @@ function exportAttendanceExcel(){
 
 
 // ══ 櫃檯管理 ══
+function switchCounterTab(tab){
+  ['leave','staff'].forEach(t=>{
+    document.getElementById('cpanel-'+t).style.display=t===tab?'block':'none';
+    const btn=document.getElementById('ctab-'+t);
+    if(btn){
+      btn.classList.toggle('active',t===tab);
+      btn.style.color=t===tab?'var(--accent)':'var(--text-dim)';
+      btn.style.borderBottom=t===tab?'2px solid var(--accent)':'2px solid transparent';
+    }
+  });
+  if(tab==='staff') renderCounterStaff();
+}
 function initCounterPanel(){
   // 填入管理員選單（排除超級管理員）
-  const sel=document.getElementById('counter-admin');
-  const cur=sel.value;
-  sel.innerHTML='<option value="">-- 選擇管理員 --</option>';
-  (data.admins||[]).forEach(a=>{
-    const o=document.createElement('option');
-    o.value=a.id; o.textContent=`${a.username}（${a.role||'主管'}）`;
-    sel.appendChild(o);
+  ['counter-admin','counter-staff-admin'].forEach(selId=>{
+    const sel=document.getElementById(selId);
+    if(!sel) return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">-- 選擇管理員 --</option>';
+    (data.admins||[]).forEach(a=>{
+      const o=document.createElement('option');
+      o.value=a.id; o.textContent=`${a.username}（${a.role||'主管'}）`;
+      sel.appendChild(o);
+    });
+    if(cur) sel.value=cur;
   });
-  if(cur) sel.value=cur;
   // 填入假期選單
   const ps=document.getElementById('counter-period');
   const pcur=ps.value;
@@ -3673,6 +3722,55 @@ function removeCounterApplication(id){
     data.counterApplications=(data.counterApplications||[]).filter(a=>a.id!==id);
     save();renderCounterOverview();toast('✓ 已刪除');
   });
+}
+function addCounterStaff(){
+  const aid=document.getElementById('counter-staff-admin').value;
+  const shift=document.getElementById('counter-staff-shift').value;
+  if(!aid) return toast('請選擇管理員',true);
+  const admin=(data.admins||[]).find(a=>a.id===aid);
+  if(!admin) return toast('找不到管理員',true);
+  if(!data.counterStaff) data.counterStaff=[];
+  if(data.counterStaff.find(s=>s.adminId===aid)) return toast('該管理員已設定班別',true);
+  data.counterStaff.push({adminId:aid,adminName:admin.username,shift});
+  save(); renderCounterStaff();
+  toast(`✓ ${admin.username} 設定為${shift}班`);
+}
+function removeCounterStaff(aid){
+  data.counterStaff=(data.counterStaff||[]).filter(s=>s.adminId!==aid);
+  save(); renderCounterStaff(); toast('✓ 已刪除');
+}
+function updateCounterStaffShift(aid, shift){
+  const s=(data.counterStaff||[]).find(x=>x.adminId===aid);
+  if(s){ s.shift=shift; save(); toast('✓ 已更新'); }
+}
+function renderCounterStaff(){
+  const el=document.getElementById('counter-staff-list');
+  if(!el) return;
+  const staff=data.counterStaff||[];
+  if(!staff.length){
+    el.innerHTML='<div class="empty" style="padding:16px 0;"><div class="empty-icon">👥</div>尚未設定櫃檯人員</div>';
+    return;
+  }
+  const SHIFT_DESC={
+    早:'早班 09:00–18:00',
+    中:'中班 13:00–22:00',
+    晚:'晚班 15:00–24:00（平日）/ 17:00–02:00（假日）'
+  };
+  el.innerHTML=staff.map(s=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);gap:8px;flex-wrap:wrap;">
+      <div>
+        <span style="font-family:'Space Mono',monospace;font-size:.78rem;font-weight:600;">👤 ${s.adminName}</span>
+        <span style="font-size:.72rem;color:var(--text-dim);margin-left:8px;">${SHIFT_DESC[s.shift]||s.shift+'班'}</span>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;">
+        <select onchange="updateCounterStaffShift('${s.adminId}',this.value)" style="padding:3px 7px;font-size:.72rem;">
+          <option value="早" ${s.shift==='早'?'selected':''}>早班</option>
+          <option value="中" ${s.shift==='中'?'selected':''}>中班</option>
+          <option value="晚" ${s.shift==='晚'?'selected':''}>晚班</option>
+        </select>
+        <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="removeCounterStaff('${s.adminId}')">刪除</button>
+      </div>
+    </div>`).join('');
 }
 function renderCounterOverview(){
   const el=document.getElementById('counter-overview');
