@@ -559,7 +559,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <div id="apppanel-leave" class="main" style="padding-top:20px;display:none;">
         <!-- 本月統計 -->
         <div class="card">
-          <div class="section-title" style="margin-bottom:13px;">本月統計</div>
+          <div class="section-title" style="margin-bottom:13px;">請假統計</div>
           <div class="grid-2">
             <div class="stat-box"><div class="stat-num" id="stat-el-pending">0</div><div class="stat-label">待審核</div></div>
             <div class="stat-box"><div class="stat-num" id="stat-el-approved">0</div><div class="stat-label">已核准</div></div>
@@ -2666,14 +2666,11 @@ function getUsedDays(empId, monthKey){
 }
 
 function updateElStats(){
-  const now=new Date();
-  const thisMonth=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const leaves=data.extraLeaves||[];
-  const ml=leaves.filter(l=>{try{return l.date.slice(0,7)===thisMonth;}catch(e){return false;}});
   const pe=document.getElementById('stat-el-pending');
   const ae=document.getElementById('stat-el-approved');
-  if(pe)pe.textContent=ml.filter(l=>l.status==='pending').length;
-  if(ae)ae.textContent=ml.filter(l=>l.status==='approved').length;
+  if(pe)pe.textContent=leaves.filter(l=>l.status==='pending').length;
+  if(ae)ae.textContent=leaves.filter(l=>l.status==='approved').length;
 }
 function renderExtraLeave(){
   const filterShift=document.getElementById('el-filter-shift')?.value||'';
