@@ -212,9 +212,6 @@ tr:hover td{background:rgba(255,255,255,.018);}
 .self-panel{display:none;}.self-panel.active{display:block;}
 </style>
 
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 </head>
 <body>
 
@@ -839,9 +836,62 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <div style="display:flex;border-bottom:1px solid var(--border);padding:0 28px;margin-bottom:16px;">
         <button class="apptab active" id="ctab-staff" onclick="switchCounterTab('staff')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">👥 櫃檯人員</button>
         <button class="apptab" id="ctab-leave" onclick="switchCounterTab('leave')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">📋 櫃檯排假</button>
+        <button class="apptab" id="ctab-special" onclick="switchCounterTab('special')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">🗓 櫃檶特殊排班</button>
       </div>
 
-      <!-- 子分頁：櫃檯排假（預設隱藏） -->
+      <!-- 子分頁：櫃檶特殊排班（預設隱藏） -->
+      <div id="cpanel-special" style="display:none;">
+        <!-- 班別調整 -->
+        <div class="card" style="margin-top:10px;">
+          <div class="section-title" style="margin-bottom:10px;">班別調整</div>
+          <div class="grid-2">
+            <div>
+              <div class="field"><label>管理員</label>
+                <select id="cso-admin" onchange="onCsoPeriodChange()" style="width:100%;"><option value="">-- 選擇管理員 --</option></select>
+              </div>
+              <div class="field"><label>選擇假期</label>
+                <select id="cso-period" onchange="onCsoPeriodChange()" style="width:100%;"><option value="">-- 選擇假期 --</option></select>
+              </div>
+              <div class="field"><label>班別</label>
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                  <select id="cso-shift" onchange="onCsoShiftChange()" style="padding:6px 10px;font-size:.78rem;">
+                    <option value="早">早班</option>
+                    <option value="中">中班</option>
+                    <option value="晚">晚班</option>
+                    <option value="custom">自訂時間</option>
+                  </select>
+                  <div id="cso-custom-wrap" style="display:none;gap:6px;align-items:center;">
+                    <input type="text" id="cso-custom-start" placeholder="HHMM" maxlength="4" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onblur="if(this.value.length===4)this.value=this.value.slice(0,2)+':'+this.value.slice(2)" style="padding:5px;font-size:.78rem;width:70px;">
+                    <span style="font-size:.78rem;">~</span>
+                    <input type="text" id="cso-custom-end" placeholder="HHMM" maxlength="4" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onblur="if(this.value.length===4)this.value=this.value.slice(0,2)+':'+this.value.slice(2)" style="padding:5px;font-size:.78rem;width:70px;">
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;" onclick="addCounterShiftOverride()">儲存班別調整</button>
+            </div>
+            <div>
+              <div class="field"><label>申請日期（可多選）</label>
+                <div id="cso-dates-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px;min-height:80px;max-height:170px;overflow-y:auto;">
+                  <div style="color:var(--text-dim);font-size:.79rem;">請先選擇假期</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="section-title" style="margin:14px 0 8px;">班別調整總覽</div>
+          <div id="cso-overview"></div>
+        </div>
+        <!-- 櫃台班表預覽 -->
+        <div class="card" style="margin-top:10px;">
+          <div class="section-title" style="margin-bottom:10px;">櫃台班表預覽</div>
+          <div class="field">
+            <label>選擇假期</label>
+            <select id="special-preview-period" onchange="renderCounterPreview(parseInt(this.value)||0,'special-preview-table')" style="width:100%;"><option value="">-- 選擇假期 --</option></select>
+          </div>
+          <div id="special-preview-table"></div>
+        </div>
+        </div>
+
+      <!-- 子分頁：櫃檶排假（預設隱藏） -->
       <div id="cpanel-leave" style="display:none;">
         <div class="card">
           <div class="section-title">選擇管理員與假期</div>
@@ -868,46 +918,17 @@ tr:hover td{background:rgba(255,255,255,.018);}
           <div class="section-title" style="margin-bottom:10px;">排假申請總覽</div>
           <div id="counter-overview"></div>
         </div>
-
-        <!-- 班別調整 -->
+        <!-- 櫃台班表預覽 -->
         <div class="card" style="margin-top:10px;">
-          <div class="section-title" style="margin-bottom:10px;">班別調整</div>
-          <div class="grid-2">
-            <div>
-              <div class="field"><label>管理員</label>
-                <select id="cso-admin" style="width:100%;"><option value="">-- 選擇管理員 --</option></select>
-              </div>
-              <div class="field"><label>選擇假期</label>
-                <select id="cso-period" onchange="onCsoPeriodChange()" style="width:100%;"><option value="">-- 選擇假期 --</option></select>
-              </div>
-              <div class="field"><label>班別</label>
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-                  <select id="cso-shift" onchange="onCsoShiftChange()" style="padding:6px 10px;font-size:.78rem;">
-                    <option value="早">早班</option>
-                    <option value="中">中班</option>
-                    <option value="晚">晚班</option>
-                    <option value="custom">自訂時間</option>
-                  </select>
-                  <div id="cso-custom-wrap" style="display:none;gap:6px;align-items:center;">
-                    <input type="time" id="cso-custom-start" style="padding:5px;font-size:.78rem;">
-                    <span style="font-size:.78rem;">~</span>
-                    <input type="time" id="cso-custom-end" style="padding:5px;font-size:.78rem;">
-                  </div>
-                </div>
-              </div>
-              <button class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;" onclick="addCounterShiftOverride()">儲存班別調整</button>
-            </div>
-            <div>
-              <div class="field"><label>申請日期（可多選）</label>
-                <div id="cso-dates-wrap" style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:9px;min-height:80px;max-height:170px;overflow-y:auto;">
-                  <div style="color:var(--text-dim);font-size:.79rem;">請先選擇假期</div>
-                </div>
-              </div>
-            </div>
+          <div class="section-title" style="margin-bottom:10px;">櫃台班表預覽</div>
+          <div class="field">
+            <label>選擇假期</label>
+            <select id="leave-preview-period" onchange="renderCounterPreview(parseInt(this.value)||0,'leave-preview-table')" style="width:100%;"><option value="">-- 選擇假期 --</option></select>
           </div>
-          <div class="section-title" style="margin:14px 0 8px;">班別調整總覽</div>
-          <div id="cso-overview"></div>
+          <div id="leave-preview-table"></div>
         </div>
+
+
       </div>
 
       <!-- 子分頁：櫃檯人員 -->
@@ -1104,7 +1125,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
 <script>
 // ══ MODE 偵測：Firebase 可用 → 雲端；否則 → localStorage 本地 ══
-const USE_LOCAL = typeof firebase === 'undefined';
+let USE_LOCAL = true; // 動態載入 Firebase 前先預設本地模式
 
 const DEFAULT_DATA = {
   employees:[],
@@ -1123,23 +1144,43 @@ const DEFAULT_DATA = {
 let data = JSON.parse(JSON.stringify(DEFAULT_DATA));
 let _saving=false, _pendingSave=false;
 
-// ── Firebase 設定（雲端模式） ──
+// ── Firebase 設定（雲端模式，動態載入） ──
 let DATA_REF = null;
 let AUTH_REF = null;
-if(!USE_LOCAL){
-  const firebaseConfig = {
-    apiKey: "AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
-    authDomain: "vacation-system-22655.firebaseapp.com",
-    projectId: "vacation-system-22655",
-    storageBucket: "vacation-system-22655.firebasestorage.app",
-    messagingSenderId: "171517523326",
-    appId: "1:171517523326:web:4ae4813fbbef7c93d2af2f"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
-  DATA_REF = db.collection('system').doc('data');
-  AUTH_REF  = db.collection('system').doc('auth');
-  window._fbAuth = firebase.auth();
+
+function _loadScript(src){
+  return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});
+}
+
+function loadFirebaseAndInit(){
+  document.getElementById('loading-msg').textContent='連線至雲端資料庫…';
+  _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js')
+    .then(()=>Promise.all([
+      _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'),
+      _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js')
+    ]))
+    .then(()=>{
+      USE_LOCAL=false;
+      const firebaseConfig={
+        apiKey:"AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
+        authDomain:"vacation-system-22655.firebaseapp.com",
+        projectId:"vacation-system-22655",
+        storageBucket:"vacation-system-22655.firebasestorage.app",
+        messagingSenderId:"171517523326",
+        appId:"1:171517523326:web:4ae4813fbbef7c93d2af2f"
+      };
+      firebase.initializeApp(firebaseConfig);
+      const db=firebase.firestore();
+      DATA_REF=db.collection('system').doc('data');
+      AUTH_REF=db.collection('system').doc('auth');
+      window._fbAuth=firebase.auth();
+      initData();
+    })
+    .catch(()=>{
+      // Firebase 載入失敗，退回本地模式
+      USE_LOCAL=true;
+      initData();
+    });
 }
 
 // ── save ──
@@ -3713,7 +3754,7 @@ function exportAttendanceExcel(){
 
 // ══ 櫃檯管理 ══
 function switchCounterTab(tab){
-  ['leave','staff'].forEach(t=>{
+  ['leave','staff','special'].forEach(t=>{
     document.getElementById('cpanel-'+t).style.display=t===tab?'block':'none';
     const btn=document.getElementById('ctab-'+t);
     if(btn){
@@ -3723,7 +3764,8 @@ function switchCounterTab(tab){
     }
   });
   if(tab==='staff') renderCounterStaff();
-  if(tab==='leave') renderCsoOverview();
+  if(tab==='leave'){ renderCounterOverview(); onCounterPeriodChange(); }
+  if(tab==='special'){ renderCsoOverview(); renderCounterPreview(parseInt(document.getElementById('special-preview-period')?.value||0),'special-preview-table'); }
 }
 function initCounterPanel(){
   // 填入管理員選單（排除超級管理員）
@@ -3740,7 +3782,7 @@ function initCounterPanel(){
     if(cur) sel.value=cur;
   });
   // 填入假期選單（含班別調整用）
-  ['counter-period','cso-period'].forEach(selId=>{
+  ['counter-period','cso-period','leave-preview-period','special-preview-period'].forEach(selId=>{
     const ps=document.getElementById(selId);
     if(!ps) return;
     const pcur=ps.value;
@@ -3769,6 +3811,9 @@ function onCounterPeriodChange(){
   dw.innerHTML=dates.map(d=>`<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Serif TC',serif;color:${isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
     <input type="checkbox" id="counterdate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"> ${fd(d)}
   </label>`).join('');
+  // 同步預覽假期選單並刷新預覽
+  const lp=document.getElementById('leave-preview-period');
+  if(lp){lp.value=pid||'';renderCounterPreview(pid||0,'leave-preview-table');}
 }
 function addCounterApplication(){
   const aid=document.getElementById('counter-admin').value;
@@ -3781,35 +3826,49 @@ function addCounterApplication(){
   if(!p)return toast('找不到假期',true);
   const dates=getDates(p.start,p.end).filter(d=>document.getElementById('counterdate_'+d)?.checked);
   if(!dates.length)return toast('請至少勾選一個日期',true);
-  // 以管理員 id 作為 empId（用特殊前綴區分）
-  if(!data.counterApplications) data.counterApplications=[];
-  let added=0;
-  dates.forEach(d=>{
-    const exists=data.counterApplications.find(a=>a.adminId===aid&&a.periodId===pid&&a.date===d);
-    if(!exists){
-      data.counterApplications.push({
-        id:`ca_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
-        adminId:aid,
-        adminName:admin.username,
-        adminRole:admin.role||'主管',
-        periodId:pid,
-        periodName:p.name,
-        date:d,
-        appliedAt:new Date().toLocaleString('zh-TW')
-      });
-      added++;
-    }
-  });
-  save();
-  renderCounterOverview();
-  document.querySelectorAll('#counter-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
-  toast(`✓ ${admin.username} 排假 ${added} 天`);
+  // 檢查是否有日期已存在特殊排班
+  const conflictDates=dates.filter(d=>(data.counterShiftOverrides||[]).some(x=>x.adminId===aid&&x.date===d));
+  function doApply(){
+    if(!data.counterApplications) data.counterApplications=[];
+    let added=0;
+    dates.forEach(d=>{
+      // 若有特殊排班衝突，刪除之
+      if(conflictDates.includes(d)){
+        data.counterShiftOverrides=(data.counterShiftOverrides||[]).filter(x=>!(x.adminId===aid&&x.date===d));
+      }
+      const exists=data.counterApplications.find(a=>a.adminId===aid&&a.periodId===pid&&a.date===d);
+      if(!exists){
+        data.counterApplications.push({
+          id:`ca_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+          adminId:aid,
+          adminName:admin.username,
+          adminRole:admin.role||'主管',
+          periodId:pid,
+          periodName:p.name,
+          date:d,
+          appliedAt:new Date().toLocaleString('zh-TW')
+        });
+        added++;
+      }
+    });
+    save();
+    renderCounterOverview();
+    renderCsoOverview();
+    refreshCounterPreviews();
+    document.querySelectorAll('#counter-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
+    const extra=conflictDates.length>0?`（已同步移除 ${conflictDates.length} 天特殊排班）`:'';
+    toast(`✓ ${admin.username} 排假 ${added} 天${extra}`);
+  }
+  if(conflictDates.length>0){
+    const dateList=conflictDates.map(d=>fd(d)).join('、');
+    showModal('確認排假',`以下日期已有特殊排班：${dateList}。確認排假後將同步刪除這些日期的特殊排班，是否繼續？`,doApply);
+  } else {
+    doApply();
+  }
 }
 function removeCounterApplication(id){
-  showModal('刪除排假','確定要刪除此排假申請？',()=>{
-    data.counterApplications=(data.counterApplications||[]).filter(a=>a.id!==id);
-    save();renderCounterOverview();toast('✓ 已刪除');
-  });
+  data.counterApplications=(data.counterApplications||[]).filter(a=>a.id!==id);
+  save();renderCounterOverview();refreshCounterPreviews();toast('✓ 已刪除');
 }
 function addCounterStaff(){
   const aid=document.getElementById('counter-staff-admin').value;
@@ -3820,16 +3879,16 @@ function addCounterStaff(){
   if(!data.counterStaff) data.counterStaff=[];
   if(data.counterStaff.find(s=>s.adminId===aid)) return toast('該管理員已設定班別',true);
   data.counterStaff.push({adminId:aid,adminName:admin.username,shift});
-  save(); renderCounterStaff();
+  save(); renderCounterStaff(); refreshCounterPreviews();
   toast(`✓ ${admin.username} 設定為${shift}班`);
 }
 function removeCounterStaff(aid){
   data.counterStaff=(data.counterStaff||[]).filter(s=>s.adminId!==aid);
-  save(); renderCounterStaff(); toast('✓ 已刪除');
+  save(); renderCounterStaff(); refreshCounterPreviews(); toast('✓ 已刪除');
 }
 function updateCounterStaffShift(aid, shift){
   const s=(data.counterStaff||[]).find(x=>x.adminId===aid);
-  if(s){ s.shift=shift; save(); toast('✓ 已更新'); }
+  if(s){ s.shift=shift; save(); refreshCounterPreviews(); toast('✓ 已更新'); }
 }
 let _csDragIdx=null;
 function counterStaffDragStart(e,idx){
@@ -3851,7 +3910,7 @@ function counterStaffDrop(e,toIdx){
   const arr=data.counterStaff||[];
   const [item]=arr.splice(_csDragIdx,1);
   arr.splice(toIdx,0,item);
-  save();renderCounterStaff();toast('✓ 順序已更新');
+  save();renderCounterStaff();refreshCounterPreviews();toast('✓ 順序已更新');
 }
 function counterStaffDragEnd(e){
   e.currentTarget.style.opacity='';
@@ -3898,6 +3957,9 @@ function renderCounterStaff(){
 function renderCounterOverview(){
   const el=document.getElementById('counter-overview');
   if(!el)return;
+  // 保留目前展開的群組及捲動位置
+  const openIds=new Set([...el.querySelectorAll('.app-shift-block.open')].map(b=>b.dataset.aid));
+  const scrollTop=el.scrollTop;
   const apps=data.counterApplications||[];
   if(!apps.length){
     el.innerHTML='<div class="empty"><div class="empty-icon">🗂️</div>尚無排假申請</div>';
@@ -3911,7 +3973,7 @@ function renderCounterOverview(){
     grouped[key].apps.push(a);
   });
   el.innerHTML=Object.entries(grouped).map(([aid,g])=>`
-    <div class="app-shift-block" style="margin-bottom:8px;">
+    <div class="app-shift-block${openIds.has(aid)?' open':''}" data-aid="${aid}" style="margin-bottom:8px;">
       <div class="app-shift-hdr" onclick="this.parentElement.classList.toggle('open')">
         <div style="display:flex;align-items:center;gap:9px;">
           <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;">👤 ${g.adminName}</span>
@@ -3931,19 +3993,30 @@ function renderCounterOverview(){
           </div>`).join('')}
       </div>
     </div>`).join('');
+  el.scrollTop=scrollTop;
 }
 
 
 // ── 班別調整 ──
 function onCsoPeriodChange(){
   const pid=parseInt(document.getElementById('cso-period').value);
+  const aid=document.getElementById('cso-admin').value;
   const p=data.periods.find(x=>x.id===pid);
   const dw=document.getElementById('cso-dates-wrap');
   if(!p){dw.innerHTML='<div style="color:var(--text-dim);font-size:.79rem;">請先選擇假期</div>';return;}
   const dates=getDates(p.start,p.end);
-  dw.innerHTML=dates.map(d=>`<label style="display:flex;align-items:center;gap:5px;font-size:.79rem;cursor:pointer;padding:2px 0;">
-    <input type="checkbox" id="csodate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"> ${fd(d)}
-  </label>`).join('');
+  // 建立休假日期集合（依目前選擇的管理員）
+  const leaveSet=new Set((data.counterApplications||[]).filter(a=>a.adminId===aid&&a.periodId===pid).map(a=>a.date));
+  dw.innerHTML=dates.map(d=>{
+    const isOff=leaveSet.has(d);
+    const badge=isOff?`<span style="font-size:.58rem;padding:1px 5px;border-radius:3px;background:var(--surface3);color:var(--text-dim);margin-left:2px;">休→上班</span>`:'';
+    return `<label style="display:flex;align-items:center;gap:5px;font-size:.79rem;cursor:pointer;padding:2px 0;${isOff?'color:var(--accent2);':''}">
+    <input type="checkbox" id="csodate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"> ${fd(d)}${badge}
+  </label>`;
+  }).join('');
+  // 同步預覽假期選單並刷新預覽
+  const sp=document.getElementById('special-preview-period');
+  if(sp){sp.value=pid||'';renderCounterPreview(pid||0,'special-preview-table');}
 }
 function onCsoShiftChange(){
   const v=document.getElementById('cso-shift').value;
@@ -3961,28 +4034,44 @@ function addCounterShiftOverride(){
   if(!dates.length)return toast('請至少勾選一個日期',true);
   let customStart='',customEnd='';
   if(shift==='custom'){
-    customStart=document.getElementById('cso-custom-start').value;
-    customEnd=document.getElementById('cso-custom-end').value;
+    customStart=document.getElementById('cso-custom-start').value.replace(/[^0-9]/g,'').replace(/^(\d{2})(\d{1,2})$/,'$1:$2');
+    customEnd=document.getElementById('cso-custom-end').value.replace(/[^0-9]/g,'').replace(/^(\d{2})(\d{1,2})$/,'$1:$2');
     if(!customStart||!customEnd)return toast('請輸入自訂時間',true);
   }
   if(!data.counterShiftOverrides) data.counterShiftOverrides=[];
-  let updated=0;
+  let updated=0, cancelledLeave=0;
   dates.forEach(d=>{
+    // 若該日為休假，移除排假紀錄（轉為上班）
+    const prevLeaveLen=(data.counterApplications||[]).length;
+    data.counterApplications=(data.counterApplications||[]).filter(a=>!(a.adminId===aid&&a.date===d));
+    if((data.counterApplications||[]).length<prevLeaveLen) cancelledLeave++;
+    // 儲存或更新班別調整
     const ex=data.counterShiftOverrides.find(x=>x.adminId===aid&&x.date===d);
     if(ex){ex.shift=shift;ex.customStart=customStart;ex.customEnd=customEnd;updated++;}
     else{data.counterShiftOverrides.push({id:`cso_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,adminId:aid,date:d,shift,customStart,customEnd});updated++;}
   });
-  save();renderCsoOverview();
+  save();renderCsoOverview();renderCounterOverview();refreshCounterPreviews();
   document.querySelectorAll('#cso-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
-  toast(`✓ 已設定 ${updated} 天班別調整`);
+  onCsoPeriodChange(); // 刷新日期清單（移除休→上班標記）
+  const msg=cancelledLeave>0?`✓ 已設定 ${updated} 天班別調整（含 ${cancelledLeave} 天取消排休）`:`✓ 已設定 ${updated} 天班別調整`;
+  toast(msg);
 }
 function removeCounterShiftOverride(id){
   data.counterShiftOverrides=(data.counterShiftOverrides||[]).filter(x=>x.id!==id);
-  save();renderCsoOverview();toast('✓ 已刪除');
+  save();renderCsoOverview();refreshCounterPreviews();toast('✓ 已刪除');
+}
+function refreshCounterPreviews(){
+  const lp=parseInt(document.getElementById('leave-preview-period')?.value||0);
+  const sp=parseInt(document.getElementById('special-preview-period')?.value||0);
+  if(lp) renderCounterPreview(lp,'leave-preview-table');
+  if(sp) renderCounterPreview(sp,'special-preview-table');
 }
 function renderCsoOverview(){
   const el=document.getElementById('cso-overview');
   if(!el)return;
+  // 保留目前展開的群組及捲動位置
+  const openIds=new Set([...el.querySelectorAll('.app-shift-block.open')].map(b=>b.dataset.aid));
+  const scrollTop=el.scrollTop;
   const overrides=data.counterShiftOverrides||[];
   if(!overrides.length){el.innerHTML='<div class="empty" style="padding:10px 0;font-size:.78rem;">尚無班別調整</div>';return;}
   const grouped={};
@@ -3993,7 +4082,7 @@ function renderCsoOverview(){
     grouped[x.adminId].items.push(x);
   });
   el.innerHTML=Object.entries(grouped).map(([aid,g])=>`
-    <div class="app-shift-block" style="margin-bottom:6px;">
+    <div class="app-shift-block${openIds.has(aid)?' open':''}" data-aid="${aid}" style="margin-bottom:6px;">
       <div class="app-shift-hdr" onclick="this.parentElement.classList.toggle('open')">
         <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;">👤 ${g.name}</span>
         <span style="color:var(--text-dim);font-size:.78rem;">▾</span>
@@ -4007,6 +4096,62 @@ function renderCsoOverview(){
           </div>`).join('')}
       </div>
     </div>`).join('');
+  el.scrollTop=scrollTop;
+}
+
+function renderCounterPreview(periodId, containerId){
+  const el=document.getElementById(containerId);
+  if(!el) return;
+  if(!periodId){el.innerHTML='<div class="empty" style="padding:10px 0;font-size:.78rem;">請選擇假期</div>';return;}
+  const period=data.periods.find(p=>p.id===periodId);
+  if(!period){el.innerHTML='';return;}
+  const dates=getDates(period.start,period.end);
+  const staff=data.counterStaff||[];
+  if(!staff.length){el.innerHTML='<div class="empty" style="padding:10px 0;font-size:.78rem;">尚未設定櫃台人員</div>';return;}
+  // 建立休假 dateMap
+  const counterApps=(data.counterApplications||[]).filter(a=>a.periodId===periodId);
+  const leaveDateMap={};
+  counterApps.forEach(a=>{
+    if(!leaveDateMap[a.adminId]) leaveDateMap[a.adminId]=new Set();
+    leaveDateMap[a.adminId].add(a.date);
+  });
+  // 依 counterStaff 順序建立表格
+  let html='<div style="overflow-x:auto;margin-top:8px;"><table class="sch-table" style="width:auto;min-width:100%;"><thead><tr>';
+  html+=`<th style="text-align:left;padding:5px 10px;white-space:nowrap;min-width:70px;font-size:.68rem;">日期</th>`;
+  staff.forEach(s=>{
+    html+=`<th style="text-align:center;padding:5px 8px;white-space:nowrap;font-size:.66rem;">${s.adminName}</th>`;
+  });
+  html+='</tr></thead><tbody>';
+  dates.forEach(d=>{
+    const dt=period.dateTypes||{};
+    const dayType=dt[d]||(isWk(d)?'holiday':'weekday');
+    const isWkd=dayType==='holiday';
+    const isClosed=dayType==='closed';
+    const rowStyle=isWkd?'color:var(--accent2)':isClosed?'color:var(--red);opacity:.5':'';
+    html+=`<tr><td style="padding:5px 10px;font-family:'Space Mono',monospace;font-size:.66rem;white-space:nowrap;${rowStyle}">${fd(d)}</td>`;
+    staff.forEach(s=>{
+      const isOff=leaveDateMap[s.adminId]&&leaveDateMap[s.adminId].has(d);
+      let label='';
+      if(!isOff){
+        const ovr=(data.counterShiftOverrides||[]).find(x=>x.adminId===s.adminId&&x.date===d);
+        if(ovr){
+          label=ovr.shift==='custom'
+            ?`${(ovr.customStart||'').slice(0,2)}-${(ovr.customEnd||'').slice(0,2)}`
+            :ovr.shift;
+        } else {
+          label=s.shift||'';
+        }
+      }
+      if(isOff){
+        html+=`<td style="text-align:center;"><span class="badge b-gray" style="font-size:.58rem;padding:1px 5px;">休</span></td>`;
+      } else {
+        html+=`<td style="text-align:center;"><span style="font-family:'Space Mono',monospace;font-size:.64rem;font-weight:700;color:var(--green);">${label}</span></td>`;
+      }
+    });
+    html+='</tr>';
+  });
+  html+='</tbody></table></div>';
+  el.innerHTML=html;
 }
 
 function onSchPeriodChange(){
@@ -4294,9 +4439,9 @@ function renderSchedule(){
             workLabel=staffInfo?.shift||'';
           }
         }
-        const dot=isOff?'●':workLabel;
-        const dotStyle=!isOff&&workLabel?'font-size:.6rem;font-family:inherit;font-weight:600;':'';
-        html+=`<td class="${isOff?'cell-direct':''}" title="${isOff?'休假':workLabel?workLabel+'班':''}" style="${i===0?'border-left:2px solid var(--border)':''}"><span class="cell-dot" style="${dotStyle}">${dot}</span></td>`;
+        const dot=isOff?'':workLabel;
+        const dotStyle=workLabel&&!isOff?'font-size:.6rem;font-family:inherit;font-weight:600;':'';
+        html+=`<td title="${isOff?'休假':workLabel?workLabel+'班':''}" style="${i===0?'border-left:2px solid var(--border)':''}"><span class="cell-dot" style="${dotStyle}">${dot}</span></td>`;
       });
       shifts.forEach(shift=>{
         const emps=allEmps.filter(e=>e.dept===shift);
@@ -5158,7 +5303,7 @@ function bootUI(){
     showLoginScreen();
   }
 }
-initData();
+loadFirebaseAndInit();
 initTheme();
 </script>
 </body>
