@@ -799,6 +799,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
               <option value="">全部</option>
               <option value="male">足師</option>
               <option value="female">體師</option>
+              <option value="__counter__">櫃檶</option>
             </select>
           </div>
           <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;">
@@ -3406,6 +3407,75 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
         zipEntry('xl/styles.xml',u8(stylesXml)),
       ];
       return buildZip(entries);
+    },
+    // 多工作表版（含 shared strings，供 exportScheduleExcel 使用）
+    writeSheets(sheetDefs){
+      // sheetDefs: [{name, rows, merges, colWidths, holidayRowIdxs}]
+      const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="2">
+ <font><sz val="12"/><name val="新細明體"/></font>
+ <font><sz val="12"/><name val="新細明體"/></font>
+</fonts>
+<fills count="3">
+ <fill><patternFill patternType="none"/></fill>
+ <fill><patternFill patternType="gray125"/></fill>
+ <fill><patternFill patternType="solid"><fgColor rgb="FFFF9B9B"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="2">
+ <border><left/><right/><top/><bottom/><diagonal/></border>
+ <border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>
+</borders>
+<cellStyleXfs count="1">
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+</cellStyleXfs>
+<cellXfs count="3">
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+      // shared strings across ALL sheets
+      const ssMap={},ssArr=[];let ssCount=0;
+      function ssi(v){const k=String(v);if(ssMap[k]===undefined){ssMap[k]=ssArr.length;ssArr.push(k);}ssCount++;return ssMap[k];}
+      // build each sheet XML (two-pass: first pass fills ssMap)
+      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs}){
+        const hSet=new Set(holidayRowIdxs||[]);
+        let sheetRows='';
+        rows.forEach((row,ri)=>{
+          const xf=hSet.has(ri)?2:1;
+          let cells='';
+          row.forEach((val,ci)=>{
+            const addr=colName(ci+1)+(ri+1);
+            if(typeof val==='number'){cells+=`<c r="${addr}" t="n" s="${xf}"><v>${val}</v></c>`;}
+            else{cells+=`<c r="${addr}" t="s" s="${xf}"><v>${ssi(val===null||val===undefined?'':val)}</v></c>`;}
+          });
+          sheetRows+=`<row r="${ri+1}">${cells}</row>`;
+        });
+        let colsXml='<cols>';
+        colWidths.forEach((w,i)=>{colsXml+=`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`;});
+        colsXml+='</cols>';
+        let mergeXml='';
+        if(merges&&merges.length){const enc=m=>`${colName(m.sc)}${m.sr}:${colName(m.ec)}${m.er}`;mergeXml=`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${enc(m)}"/>`).join('')}</mergeCells>`;}
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}</worksheet>`;
+      }
+      const sheetXmls=sheetDefs.map(d=>buildSheetXml(d));
+      const ssXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${ssCount}" uniqueCount="${ssArr.length}">${ssArr.map(s=>`<si><t xml:space="preserve">${xe(s)}</t></si>`).join('')}</sst>`;
+      const wbXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetDefs.map((s,i)=>`<sheet name="${xe(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
+      const wbRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetDefs.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheetDefs.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/><Relationship Id="rId${sheetDefs.length+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+      const appRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+      const ct=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>`;
+      const entries=[
+        zipEntry('[Content_Types].xml',u8(ct)),
+        zipEntry('_rels/.rels',u8(appRels)),
+        zipEntry('xl/workbook.xml',u8(wbXml)),
+        zipEntry('xl/_rels/workbook.xml.rels',u8(wbRels)),
+        ...sheetXmls.map((x,i)=>zipEntry(`xl/worksheets/sheet${i+1}.xml`,u8(x))),
+        zipEntry('xl/sharedStrings.xml',u8(ssXml)),
+        zipEntry('xl/styles.xml',u8(stylesXml)),
+      ];
+      return buildZip(entries);
     }
   };
 })();
@@ -3415,78 +3485,117 @@ function exportScheduleExcel(){
   const period=data.periods.find(p=>p.id===pid);
   if(!period)return toast('請先選擇假期',true);
 
-  const filterShift=document.getElementById('sch-shift').value;
-  const filterGender=document.getElementById('sch-gender')?.value||'';
-  const filterStore=document.getElementById('sch-store')?.value||'';
   const dates=getDates(period.start,period.end);
-  const shifts=filterShift?[filterShift]:data.departments;
   const statusMap=buildStatusMap(period);
   const WD=['日','一','二','三','四','五','六'];
   const ON_LEAVE=['lottery','direct','extra'];
-
-  const rocY=parseInt(period.start.slice(0,4))-1911;
-  const rocM=parseInt(period.start.slice(5,7));
-  const title=`${rocY}.${String(rocM).padStart(2,'0')}月 ${period.name}`;
-
-  const allEmps=data.employees.filter(e=>{
-    if(!shifts.includes(e.dept))return false;
-    if(filterGender&&(e.gender||'male')!==filterGender)return false;
-    if(filterStore&&(e.store||'竹北店')!==filterStore)return false;
-    return true;
-  });
-  const shiftEmps=shifts.map(sh=>({shift:sh,emps:allEmps.filter(e=>e.dept===sh)})).filter(x=>x.emps.length);
-  const totalEmpCols=shiftEmps.reduce((s,x)=>s+x.emps.length,0);
-  const statShifts=shiftEmps.map(x=>x.shift);
   const stSym=st=>(st==='lottery'||st==='direct')?'R':st==='extra'?'請':'';
   const titleOf=emp=>emp.empType||'直';
+  const rocY=parseInt(period.start.slice(0,4))-1911;
+  const rocM=parseInt(period.start.slice(5,7));
+  const rocMStr=`${rocY}.${String(rocM).padStart(2,'0')}月`;
 
-  // ── 建立資料列 ──
-  const rows=[];
-  const r1=[title]; for(let i=1;i<totalEmpCols+2+statShifts.length;i++)r1.push(''); rows.push(r1);
-  const r2=['','']; shiftEmps.forEach(({shift,emps})=>{r2.push(shift);for(let i=1;i<emps.length;i++)r2.push('');}); r2.push('當日休假人數'); for(let i=1;i<statShifts.length;i++)r2.push(''); rows.push(r2);
-  const r3=['','']; shiftEmps.forEach(({emps})=>emps.forEach(emp=>r3.push(titleOf(emp)))); statShifts.forEach(sh=>r3.push(sh.charAt(0))); rows.push(r3);
-  const r4=['星期','']; shiftEmps.forEach(({emps})=>emps.forEach(emp=>r4.push(emp.name))); statShifts.forEach(()=>r4.push('')); rows.push(r4);
+  // ── 員工班表工作表（足師/體師）──
+  function buildEmpSheet(gender, sheetTitle){
+    const allEmps=data.employees.filter(e=>(e.gender||'male')===gender);
+    const shifts=data.departments;
+    const shiftEmps=shifts.map(sh=>({shift:sh,emps:allEmps.filter(e=>e.dept===sh)})).filter(x=>x.emps.length);
+    const totalEmpCols=shiftEmps.reduce((s,x)=>s+x.emps.length,0);
+    const statShifts=shiftEmps.map(x=>x.shift);
+    const rows=[];
+    const r1=[sheetTitle];for(let i=1;i<totalEmpCols+2+statShifts.length;i++)r1.push('');rows.push(r1);
+    const r2=['',''];shiftEmps.forEach(({shift,emps})=>{r2.push(shift);for(let i=1;i<emps.length;i++)r2.push('');});
+    r2.push('當日休假人數');for(let i=1;i<statShifts.length;i++)r2.push('');rows.push(r2);
+    const r3=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r3.push(titleOf(emp))));statShifts.forEach(sh=>r3.push(sh.charAt(0)));rows.push(r3);
+    const r4=['星期',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r4.push(emp.name)));statShifts.forEach(()=>r4.push(''));rows.push(r4);
+    const holidayRowIdxs=[];
+    dates.forEach((d,di)=>{
+      const dt=period.dateTypes||{};
+      const dayType=dt[d]||(isWk(d)?'holiday':'weekday');
+      if(dayType==='holiday')holidayRowIdxs.push(4+di);
+      const row=[parseInt(d.slice(8)),WD[new Date(d+'T00:00:00').getDay()]];
+      shiftEmps.forEach(({emps})=>emps.forEach(emp=>row.push(stSym((statusMap[emp.id]||{})[d]))));
+      statShifts.forEach(sh=>row.push(allEmps.filter(e=>e.dept===sh).filter(emp=>ON_LEAVE.includes((statusMap[emp.id]||{})[d])).length));
+      rows.push(row);
+    });
+    const fN=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>fN.push(emp.name)));statShifts.forEach(()=>fN.push(''));rows.push(fN);
+    const fT=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>fT.push(titleOf(emp))));statShifts.forEach(()=>fT.push(''));rows.push(fT);
+    const colWidths=[5.875,4.875];
+    shiftEmps.forEach(({emps})=>emps.forEach(()=>colWidths.push(4)));
+    statShifts.forEach(()=>colWidths.push(4));
+    const merges=[];
+    merges.push({sr:1,er:1,sc:1,ec:totalEmpCols+2+statShifts.length});
+    let col=3;
+    shiftEmps.forEach(({emps})=>{if(emps.length>1)merges.push({sr:2,er:2,sc:col,ec:col+emps.length-1});col+=emps.length;});
+    if(statShifts.length>1)merges.push({sr:2,er:2,sc:col,ec:col+statShifts.length-1});
+    return {rows,merges,colWidths,holidayRowIdxs};
+  }
 
-  const holidayRowIdxs=[];
-  dates.forEach((d,di)=>{
-    const dt=period.dateTypes||{};
-    const dayType=dt[d]||(isWk(d)?'holiday':'weekday');
-    if(dayType==='holiday') holidayRowIdxs.push(4+di); // 0-based，只有假日填色
-    const row=[parseInt(d.slice(8)), WD[new Date(d+'T00:00:00').getDay()]];
-    shiftEmps.forEach(({emps})=>emps.forEach(emp=>row.push(stSym((statusMap[emp.id]||{})[d]))));
-    statShifts.forEach(sh=>row.push(allEmps.filter(e=>e.dept===sh).filter(emp=>ON_LEAVE.includes((statusMap[emp.id]||{})[d])).length));
-    rows.push(row);
-  });
+  // ── 櫃檶工作表 ──
+  function buildCounterSheet(){
+    const counterApps=data.counterApplications||[];
+    const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
+    if(!counterInPeriod.length)return null;
+    const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
+    const counterAdminIds=[...new Set(counterInPeriod.map(a=>a.adminId))];
+    counterAdminIds.sort((a,b)=>{
+      const ra=csOrder.indexOf(a)<0?9999:csOrder.indexOf(a);
+      const rb=csOrder.indexOf(b)<0?9999:csOrder.indexOf(b);
+      return ra-rb;
+    });
+    const counterAdmins=counterAdminIds.map(aid=>{
+      const app=counterInPeriod.find(a=>a.adminId===aid);
+      const staffInfo=(data.counterStaff||[]).find(s=>s.adminId===aid);
+      return {id:aid,name:app.adminName,shift:staffInfo?.shift||''};
+    });
+    const counterDateMap={};
+    counterInPeriod.forEach(a=>{
+      if(!counterDateMap[a.adminId])counterDateMap[a.adminId]=new Set();
+      counterDateMap[a.adminId].add(a.date);
+    });
+    const overrideMap={};
+    (data.counterShiftOverrides||[]).filter(x=>dates.includes(x.date)).forEach(x=>{
+      if(!overrideMap[x.adminId])overrideMap[x.adminId]={};
+      overrideMap[x.adminId][x.date]=x.shift==='custom'?`${x.customStart}-${x.customEnd}`:x.shift;
+    });
+    const n=counterAdmins.length;
+    const rows=[];
+    const r1=[rocMStr];for(let i=1;i<n+2;i++)r1.push('');rows.push(r1);
+    const r2=['',''];counterAdmins.forEach(ca=>r2.push(ca.shift));rows.push(r2);
+    const r3=['星期',''];counterAdmins.forEach(ca=>r3.push(ca.name));rows.push(r3);
+    const holidayRowIdxs=[];
+    dates.forEach((d,di)=>{
+      const dt=period.dateTypes||{};
+      const dayType=dt[d]||(isWk(d)?'holiday':'weekday');
+      if(dayType==='holiday')holidayRowIdxs.push(3+di);
+      const row=[parseInt(d.slice(8)),WD[new Date(d+'T00:00:00').getDay()]];
+      counterAdmins.forEach(ca=>{
+        if(counterDateMap[ca.id]?.has(d))row.push('R');
+        else row.push((overrideMap[ca.id]?.[d])||ca.shift||'');
+      });
+      rows.push(row);
+    });
+    const colWidths=[5.875,4.875];
+    counterAdmins.forEach(()=>colWidths.push(5));
+    const merges=[{sr:1,er:1,sc:1,ec:n+2}];
+    return {rows,merges,colWidths,holidayRowIdxs};
+  }
 
-  const fN=['','']; shiftEmps.forEach(({emps})=>emps.forEach(emp=>fN.push(emp.name))); statShifts.forEach(()=>fN.push('')); rows.push(fN);
-  const fT=['','']; shiftEmps.forEach(({emps})=>emps.forEach(emp=>fT.push(titleOf(emp)))); statShifts.forEach(()=>fT.push('')); rows.push(fT);
+  const sheetDefs=[
+    {name:'足師',...buildEmpSheet('male',`${rocMStr} 足底技師休假表`)},
+    {name:'體師',...buildEmpSheet('female',`${rocMStr} 身體技師休假表`)},
+  ];
+  const counterSheet=buildCounterSheet();
+  if(counterSheet)sheetDefs.push({name:'櫃檶',...counterSheet});
 
-  const totalEmpColsPlus2=totalEmpCols+2;
-
-  // ── 欄寬 ──
-  const colWidths=[5.875,4.875];
-  shiftEmps.forEach(({emps})=>emps.forEach(()=>colWidths.push(4)));
-  statShifts.forEach(()=>colWidths.push(4));
-
-  // ── 合併儲存格（1-based sr/er/sc/ec）──
-  const merges=[];
-  merges.push({sr:1,er:1,sc:1,ec:totalEmpCols+2+statShifts.length});
-  let col=3;
-  shiftEmps.forEach(({emps})=>{
-    if(emps.length>1) merges.push({sr:2,er:2,sc:col,ec:col+emps.length-1});
-    col+=emps.length;
-  });
-  if(statShifts.length>1) merges.push({sr:2,er:2,sc:col,ec:col+statShifts.length-1});
-
-  // ── 組裝並下載 ──
-  const buf=_xlsx.write('假表',rows,merges,colWidths,holidayRowIdxs);
+  const buf=_xlsx.writeSheets(sheetDefs);
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   const ts=new Date().toISOString().slice(0,10);
-  a.href=url; a.download=`假表_${period.name}_${ts}.xlsx`; a.click();
+  a.href=url;a.download=`假表_${period.name}_${ts}.xlsx`;a.click();
   URL.revokeObjectURL(url);
-  toast('✓ Excel 已匯出（含完整格式）');
+  toast('✓ Excel 已匯出（足師／體師／櫃檶 三個工作表）');
 }
 
 // ══ 匯出出勤表 ══
@@ -3899,7 +4008,8 @@ function addCounterApplication(){
     renderCounterOverview();
     renderCsoOverview();
     refreshCounterPreviews();
-    document.querySelectorAll('#counter-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
+    onCounterPeriodChange(); // 刷新排假日期清單
+    onCsoPeriodChange();     // 刷新班別調整日期清單（同步休→上班標記）
     const extra=conflictDates.length>0?`（已同步移除 ${conflictDates.length} 天特殊排班）`:'';
     if(added===0) return toast('所選日期已全部申請過，無新增排假',true);
     toast(`✓ ${admin.username} 排假 ${added} 天${extra}`);
@@ -3913,7 +4023,7 @@ function addCounterApplication(){
 }
 function removeCounterApplication(id){
   data.counterApplications=(data.counterApplications||[]).filter(a=>a.id!==id);
-  save();renderCounterOverview();refreshCounterPreviews();toast('✓ 已刪除');
+  save();renderCounterOverview();refreshCounterPreviews();onCounterPeriodChange();onCsoPeriodChange();toast('✓ 已刪除');
 }
 function addCounterStaff(){
   const aid=document.getElementById('counter-staff-admin').value;
@@ -4117,7 +4227,7 @@ function addCounterShiftOverride(){
 }
 function removeCounterShiftOverride(id){
   data.counterShiftOverrides=(data.counterShiftOverrides||[]).filter(x=>x.id!==id);
-  save();renderCsoOverview();refreshCounterPreviews();toast('✓ 已刪除');
+  save();renderCsoOverview();renderCounterOverview();refreshCounterPreviews();onCsoPeriodChange();onCounterPeriodChange();toast('✓ 已刪除');
 }
 function refreshCounterPreviews(){
   const lp=parseInt(document.getElementById('leave-preview-period')?.value||0);
@@ -4239,7 +4349,7 @@ function onSchPeriodChange(){
   const shiftsInPeriod=data.departments.filter(sh=>data.employees.some(e=>e.dept===sh));
   document.getElementById('sch-shift-field').style.display=shiftsInPeriod.length>1?'block':'none';
   if(shiftsInPeriod.length<=1) document.getElementById('sch-shift').value=shiftsInPeriod[0]||'';
-  // 職稱：假期未限定職稱才顯示篩選
+  // 職稱：假期未限定職稱才顯示篩選（含「全部/足師/體師/櫃檶」選項）
   const showGender=!period.genderRestrict;
   document.getElementById('sch-gender-field').style.display=showGender?'block':'none';
   if(!showGender) document.getElementById('sch-gender').value=period.genderRestrict||'';
@@ -4412,17 +4522,19 @@ function renderSchedule(){
   const period=data.periods.find(p=>p.id===pid);
   if(!period)return;
   const dates=getDates(period.start,period.end);
+  const _isCounterOnly=filterGender==='__counter__';
   const shifts=filterShift?[filterShift]:data.departments;
   const statusMap=buildStatusMap(period);
-  const allEmps=data.employees.filter(e=>{
+  const allEmps=_isCounterOnly?[]:data.employees.filter(e=>{
     if(!shifts.includes(e.dept)) return false;
-    if(filterGender && (e.gender||'male')!==filterGender) return false;
+    if(filterGender && filterGender!=='__counter__' && (e.gender||'male')!==filterGender) return false;
     if(filterStore && (e.store||'竹北店')!==filterStore) return false;
     return true;
   });
-  // 櫃檯排假：取得本假期有排假紀錄的管理員（不受篩選限制，優先顯示）
+  // 櫃檯排假：全部班別或僅顯示櫃檶時顯示；指定員工班別時隱藏
+  const _showCounter=!filterGender||_isCounterOnly;
   const counterApps=data.counterApplications||[];
-  const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
+  const counterInPeriod=_showCounter?counterApps.filter(a=>a.periodId===pid):[];
   const counterAdminIds=[...new Set(counterInPeriod.map(a=>a.adminId))];
   const counterAdmins=counterAdminIds.map(aid=>{
     const app=counterInPeriod.find(a=>a.adminId===aid);
@@ -4710,12 +4822,8 @@ function renderPermissions(){
   const el=document.getElementById('permissions-list');
   if(!el) return;
   const admins=data.admins||[];
-  const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
-  const sorted=[...admins].sort((a,b)=>{
-    const ra=csOrder.indexOf(a.id)<0?9999:csOrder.indexOf(a.id);
-    const rb=csOrder.indexOf(b.id)<0?9999:csOrder.indexOf(b.id);
-    return ra===rb?(admins.indexOf(a)-admins.indexOf(b)):ra-rb;
-  });
+  // 依帳號管理列表順序顯示（即 data.admins 順序）
+  const sorted=[...admins];
   const tabDefs=[
     {id:'employees',label:'員工管理'},
     {id:'periods',label:'期間管理'},
@@ -4836,10 +4944,18 @@ function addAdmin(){
   if(!data.admins)data.admins=[];
   const role=document.getElementById('new-admin-role').value||'主管';
   const newAdmin={id:`${Date.now()}`,username:user,password:pw,role};
-  // 插入到相同權限群組的最後一個之後
+  // 角色排序：負責人 > 主管 > 櫃檶，插入到相同角色群組最後一個之後
+  const _aRoleOrder=r=>r==='負責人'?0:r==='主管'?1:2;
+  const newOrder=_aRoleOrder(role);
   let insertIdx=data.admins.length;
-  for(let i=data.admins.length-1;i>=0;i--){
-    if((data.admins[i].role||'主管')===role){insertIdx=i+1;break;}
+  // 找到同角色最後一位
+  for(let i=0;i<data.admins.length;i++){
+    if(_aRoleOrder(data.admins[i].role||'主管')===newOrder) insertIdx=i+1;
+  }
+  // 若同角色一個都沒有，插在第一個比自己低的角色之前
+  if(insertIdx===data.admins.length||_aRoleOrder(data.admins[insertIdx-1]?.role||'主管')!==newOrder){
+    insertIdx=data.admins.findIndex(a=>_aRoleOrder(a.role||'主管')>newOrder);
+    if(insertIdx===-1) insertIdx=data.admins.length;
   }
   data.admins.splice(insertIdx,0,newAdmin);
   save();renderAccounts();
