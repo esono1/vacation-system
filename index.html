@@ -3767,20 +3767,38 @@ function switchCounterTab(tab){
   if(tab==='leave'){ renderCounterOverview(); onCounterPeriodChange(); }
   if(tab==='special'){ renderCsoOverview(); renderCounterPreview(parseInt(document.getElementById('special-preview-period')?.value||0),'special-preview-table'); }
 }
-function initCounterPanel(){
-  // 填入管理員選單（排除超級管理員）
-  ['counter-admin','counter-staff-admin','cso-admin'].forEach(selId=>{
+function refreshAdminSelects(){
+  const staffOrder=(data.counterStaff||[]).map(s=>s.adminId);
+  // 已設定班別的管理員（依班別順序）
+  const counterAdmins=(data.admins||[])
+    .filter(a=>staffOrder.includes(a.id))
+    .sort((a,b)=>staffOrder.indexOf(a.id)-staffOrder.indexOf(b.id));
+  // 所有管理員（含未設定班別，供新增班別用）
+  const allAdmins=[
+    ...counterAdmins,
+    ...(data.admins||[]).filter(a=>!staffOrder.includes(a.id))
+  ];
+  const listMap={
+    'counter-admin': counterAdmins,   // 排假：僅已設定班別
+    'cso-admin':     counterAdmins,   // 特殊排班：僅已設定班別
+    'counter-staff-admin': allAdmins  // 設定班別：顯示全部
+  };
+  Object.entries(listMap).forEach(([selId,admins])=>{
     const sel=document.getElementById(selId);
     if(!sel) return;
     const cur=sel.value;
     sel.innerHTML='<option value="">-- 選擇管理員 --</option>';
-    (data.admins||[]).forEach(a=>{
+    admins.forEach(a=>{
       const o=document.createElement('option');
       o.value=a.id; o.textContent=`${a.username}（${a.role||'主管'}）`;
       sel.appendChild(o);
     });
     if(cur) sel.value=cur;
   });
+}
+function initCounterPanel(){
+  // 填入管理員選單：依櫃台班別順序優先，其餘依 admins 原順序補於後
+  refreshAdminSelects();
   // 填入假期選單（含班別調整用）
   ['counter-period','cso-period','leave-preview-period','special-preview-period'].forEach(selId=>{
     const ps=document.getElementById(selId);
@@ -3798,8 +3816,8 @@ function initCounterPanel(){
   switchCounterTab('staff');
 }
 function onCounterAdminChange(){
-  // 重新選管理員時清除日期勾選
-  document.querySelectorAll('#counter-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
+  // 重新選管理員時刷新日期清單（含已排假標記）
+  onCounterPeriodChange();
 }
 function onCounterPeriodChange(){
   const pid=parseInt(document.getElementById('counter-period').value);
@@ -3808,9 +3826,15 @@ function onCounterPeriodChange(){
   // 清除日期勾選
   if(!p){dw.innerHTML='<div style="color:var(--text-dim);font-size:.79rem;">請先選擇假期</div>';return;}
   const dates=getDates(p.start,p.end);
-  dw.innerHTML=dates.map(d=>`<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Serif TC',serif;color:${isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
-    <input type="checkbox" id="counterdate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"> ${fd(d)}
-  </label>`).join('');
+  const aid2=document.getElementById('counter-admin').value;
+  const alreadyLeave=new Set((data.counterApplications||[]).filter(a=>a.adminId===aid2&&a.periodId===pid).map(a=>a.date));
+  dw.innerHTML=dates.map(d=>{
+    const already=alreadyLeave.has(d);
+    const badge=already?`<span style="font-size:.58rem;padding:1px 5px;border-radius:3px;background:var(--surface3);color:var(--text-dim);margin-left:2px;">已排假</span>`:'';
+    return `<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Serif TC',serif;color:${already?'var(--text-dim)':isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
+    <input type="checkbox" id="counterdate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"${already?' disabled title="已排假"':''}> ${fd(d)}${badge}
+  </label>`;
+  }).join('');
   // 同步預覽假期選單並刷新預覽
   const lp=document.getElementById('leave-preview-period');
   if(lp){lp.value=pid||'';renderCounterPreview(pid||0,'leave-preview-table');}
@@ -3857,6 +3881,7 @@ function addCounterApplication(){
     refreshCounterPreviews();
     document.querySelectorAll('#counter-dates-wrap input[type=checkbox]').forEach(cb=>cb.checked=false);
     const extra=conflictDates.length>0?`（已同步移除 ${conflictDates.length} 天特殊排班）`:'';
+    if(added===0) return toast('所選日期已全部申請過，無新增排假',true);
     toast(`✓ ${admin.username} 排假 ${added} 天${extra}`);
   }
   if(conflictDates.length>0){
@@ -3878,13 +3903,21 @@ function addCounterStaff(){
   if(!admin) return toast('找不到管理員',true);
   if(!data.counterStaff) data.counterStaff=[];
   if(data.counterStaff.find(s=>s.adminId===aid)) return toast('該管理員已設定班別',true);
-  data.counterStaff.push({adminId:aid,adminName:admin.username,shift});
-  save(); renderCounterStaff(); refreshCounterPreviews();
+  // 班別優先順序：早 < 中 < 晚，其他排最後
+  const _shiftRank=s=>({早:0,中:1,晚:2}[s]??3);
+  const newRank=_shiftRank(shift);
+  // 找到最後一個 rank <= 新班別 rank 的位置，插入其後
+  let insertIdx=0;
+  for(let i=0;i<data.counterStaff.length;i++){
+    if(_shiftRank(data.counterStaff[i].shift)<=newRank) insertIdx=i+1;
+  }
+  data.counterStaff.splice(insertIdx,0,{adminId:aid,adminName:admin.username,shift});
+  save(); renderCounterStaff(); refreshAdminSelects(); refreshCounterPreviews();
   toast(`✓ ${admin.username} 設定為${shift}班`);
 }
 function removeCounterStaff(aid){
   data.counterStaff=(data.counterStaff||[]).filter(s=>s.adminId!==aid);
-  save(); renderCounterStaff(); refreshCounterPreviews(); toast('✓ 已刪除');
+  save(); renderCounterStaff(); refreshAdminSelects(); refreshCounterPreviews(); toast('✓ 已刪除');
 }
 function updateCounterStaffShift(aid, shift){
   const s=(data.counterStaff||[]).find(x=>x.adminId===aid);
@@ -3910,7 +3943,7 @@ function counterStaffDrop(e,toIdx){
   const arr=data.counterStaff||[];
   const [item]=arr.splice(_csDragIdx,1);
   arr.splice(toIdx,0,item);
-  save();renderCounterStaff();refreshCounterPreviews();toast('✓ 順序已更新');
+  save();renderCounterStaff();refreshAdminSelects();refreshCounterPreviews();toast('✓ 順序已更新');
 }
 function counterStaffDragEnd(e){
   e.currentTarget.style.opacity='';
@@ -3965,14 +3998,20 @@ function renderCounterOverview(){
     el.innerHTML='<div class="empty"><div class="empty-icon">🗂️</div>尚無排假申請</div>';
     return;
   }
-  // 依管理員分組
+  // 依管理員分組，依 counterStaff 順序排列
   const grouped={};
   apps.forEach(a=>{
     const key=a.adminId;
     if(!grouped[key]) grouped[key]={adminName:a.adminName,adminRole:a.adminRole,apps:[]};
     grouped[key].apps.push(a);
   });
-  el.innerHTML=Object.entries(grouped).map(([aid,g])=>`
+  const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
+  const sortedGroups=Object.entries(grouped).sort(([a],[b])=>{
+    const ra=csOrder.indexOf(a)<0?9999:csOrder.indexOf(a);
+    const rb=csOrder.indexOf(b)<0?9999:csOrder.indexOf(b);
+    return ra-rb;
+  });
+  el.innerHTML=sortedGroups.map(([aid,g])=>`
     <div class="app-shift-block${openIds.has(aid)?' open':''}" data-aid="${aid}" style="margin-bottom:8px;">
       <div class="app-shift-hdr" onclick="this.parentElement.classList.toggle('open')">
         <div style="display:flex;align-items:center;gap:9px;">
@@ -4081,7 +4120,13 @@ function renderCsoOverview(){
     if(!grouped[x.adminId]) grouped[x.adminId]={name,items:[]};
     grouped[x.adminId].items.push(x);
   });
-  el.innerHTML=Object.entries(grouped).map(([aid,g])=>`
+  const csOrder2=(data.counterStaff||[]).map(s=>s.adminId);
+  const sortedCsoGroups=Object.entries(grouped).sort(([a],[b])=>{
+    const ra=csOrder2.indexOf(a)<0?9999:csOrder2.indexOf(a);
+    const rb=csOrder2.indexOf(b)<0?9999:csOrder2.indexOf(b);
+    return ra-rb;
+  });
+  el.innerHTML=sortedCsoGroups.map(([aid,g])=>`
     <div class="app-shift-block${openIds.has(aid)?' open':''}" data-aid="${aid}" style="margin-bottom:6px;">
       <div class="app-shift-hdr" onclick="this.parentElement.classList.toggle('open')">
         <span style="font-family:'Space Mono',monospace;font-size:.72rem;font-weight:700;">👤 ${g.name}</span>
@@ -4593,15 +4638,48 @@ function selfCancelMakeup(mid,pid,eid){
 
 
 // ══ ACCOUNTS MANAGEMENT ══
+let _adminDragIdx=null;
+function adminDragStart(e,idx){
+  _adminDragIdx=idx;
+  e.dataTransfer.effectAllowed='move';
+  e.currentTarget.style.opacity='0.4';
+}
+function adminDragOver(e,idx){
+  e.preventDefault();
+  e.dataTransfer.dropEffect='move';
+  document.querySelectorAll('#admin-list [data-adminidx]').forEach((el,i)=>{
+    el.style.borderTop=i===idx&&_adminDragIdx!==idx?'2px solid var(--accent)':'';
+  });
+}
+function adminDrop(e,toIdx){
+  e.preventDefault();
+  document.querySelectorAll('#admin-list [data-adminidx]').forEach(el=>el.style.borderTop='');
+  if(_adminDragIdx===null||_adminDragIdx===toIdx)return;
+  const arr=data.admins||[];
+  const [item]=arr.splice(_adminDragIdx,1);
+  arr.splice(toIdx,0,item);
+  save();renderAccounts();toast('✓ 順序已更新');
+}
+function adminDragEnd(e){
+  e.currentTarget.style.opacity='';
+  document.querySelectorAll('#admin-list [data-adminidx]').forEach(el=>el.style.borderTop='');
+  _adminDragIdx=null;
+}
 function renderAccounts(){
   const admins=data.admins||[];
   const el=document.getElementById('admin-list');
   if(!admins.length){
     el.innerHTML='<div style="font-size:.8rem;color:var(--text-dim);">尚無管理員帳號</div>';
   } else {
-    el.innerHTML=admins.map(a=>`
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);gap:8px;">
+    el.innerHTML=admins.map((a,idx)=>`
+      <div data-adminidx="${idx}" draggable="true"
+        ondragstart="adminDragStart(event,${idx})"
+        ondragover="adminDragOver(event,${idx})"
+        ondrop="adminDrop(event,${idx})"
+        ondragend="adminDragEnd(event)"
+        style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);gap:8px;cursor:grab;">
         <div style="display:flex;align-items:center;gap:7px;">
+          <span style="color:var(--text-dim);font-size:1rem;cursor:grab;user-select:none;padding-right:2px;">⠿</span>
           <span style="font-family:'Space Mono',monospace;font-size:.78rem;">👤 ${a.username}</span>
           <span class="badge b-gray" style="font-size:.58rem;">${a.role||'主管'}</span>
         </div>
@@ -4647,7 +4725,13 @@ function addAdmin(){
   if((data.admins||[]).find(a=>a.username===user))return toast('帳號已存在',true);
   if(!data.admins)data.admins=[];
   const role=document.getElementById('new-admin-role').value||'主管';
-  data.admins.push({id:`${Date.now()}`,username:user,password:pw,role});
+  const newAdmin={id:`${Date.now()}`,username:user,password:pw,role};
+  // 插入到相同權限群組的最後一個之後
+  let insertIdx=data.admins.length;
+  for(let i=data.admins.length-1;i>=0;i--){
+    if((data.admins[i].role||'主管')===role){insertIdx=i+1;break;}
+  }
+  data.admins.splice(insertIdx,0,newAdmin);
   save();renderAccounts();
   document.getElementById('new-admin-user').value='';
   document.getElementById('new-admin-pw').value='';
