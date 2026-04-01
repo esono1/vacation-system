@@ -347,6 +347,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
     <div class="field"><label>帳號</label><input type="text" id="edit-admin-user" style="width:100%;"></div>
     <div class="field"><label>權限</label>
       <select id="edit-admin-role" style="width:100%;">
+        <option value="負責人">負責人</option>
         <option value="主管">主管</option>
         <option value="櫃檯">櫃檯</option>
       </select>
@@ -958,44 +959,56 @@ tr:hover td{background:rgba(255,255,255,.018);}
 
     <!-- 帳號管理（僅超級管理員） -->
     <div id="panel-accounts" class="panel">
-      <div class="section-title">帳號管理</div>
-      <div class="grid-2">
-        <!-- 管理員帳號 -->
-        <div class="card">
-          <div class="section-title">管理員帳號</div>
-          <div class="field"><label>帳號</label><input type="text" id="new-admin-user" placeholder="輸入帳號"></div>
-          <div class="field"><label>密碼</label><input type="text" id="new-admin-pw" placeholder="輸入密碼"></div>
-          <div class="field"><label>權限</label>
-            <select id="new-admin-role" style="width:100%;">
-              <option value="主管">主管</option>
-              <option value="櫃檯">櫃檯</option>
-            </select>
+      <!-- 子分頁列 -->
+      <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;gap:0;">
+        <button class="accsub-btn" id="acctab-accounts" onclick="switchAccountsTab('accounts')" style="padding:9px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;cursor:pointer;border:none;background:none;white-space:nowrap;">帳號管理</button>
+        <button class="accsub-btn" id="acctab-permissions" onclick="switchAccountsTab('permissions')" style="padding:9px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;cursor:pointer;border:none;background:none;white-space:nowrap;">權限管理</button>
+      </div>
+      <!-- 帳號管理子分頁 -->
+      <div id="accpanel-accounts">
+        <div class="grid-2">
+          <!-- 管理員帳號 -->
+          <div class="card">
+            <div class="section-title">管理員帳號</div>
+            <div class="field"><label>帳號</label><input type="text" id="new-admin-user" placeholder="輸入帳號"></div>
+            <div class="field"><label>密碼</label><input type="text" id="new-admin-pw" placeholder="輸入密碼"></div>
+            <div class="field"><label>權限</label>
+              <select id="new-admin-role" style="width:100%;">
+                <option value="負責人">負責人</option>
+                <option value="主管">主管</option>
+                <option value="櫃檯">櫃檯</option>
+              </select>
+            </div>
+            <button class="btn btn-primary" onclick="addAdmin()">新增管理員</button>
+            <div id="admin-list" style="margin-top:14px;"></div>
           </div>
-          <button class="btn btn-primary" onclick="addAdmin()">新增管理員</button>
-          <div id="admin-list" style="margin-top:14px;"></div>
+          <!-- 員工 PIN 管理 -->
+          <div class="card">
+            <div class="section-title">員工帳號</div>
+            <div class="field"><label>店別</label>
+              <select id="pin-store-select" onchange="onPinStoreChange()" style="width:100%;">
+                <option value="">-- 選擇店別 --</option>
+                <option value="竹北店">竹北店</option>
+                <option value="關新店">關新店</option>
+              </select>
+            </div>
+            <div class="field"><label>選擇員工</label>
+              <select id="pin-emp-select" onchange="onPinEmpChange()" style="width:100%;"><option value="">-- 選擇員工 --</option></select>
+            </div>
+            <div id="pin-current" style="font-size:.78rem;margin-bottom:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-dim);">--先選擇員工--</div>
+            <div class="field" style="margin-bottom:10px;"><label>設定密碼</label>
+              <input type="text" id="pin-set-input" placeholder="輸入新密碼" style="width:100%;">
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" style="flex:1;" onclick="setEmpPin()">設定密碼</button>
+              <button class="btn btn-danger" style="flex:1;" onclick="resetEmpPin()">重置（清除）</button>
+            </div>
+          </div>
         </div>
-        <!-- 員工 PIN 管理 -->
-        <div class="card">
-          <div class="section-title">員工帳號</div>
-          <div class="field"><label>店別</label>
-            <select id="pin-store-select" onchange="onPinStoreChange()" style="width:100%;">
-              <option value="">-- 選擇店別 --</option>
-              <option value="竹北店">竹北店</option>
-              <option value="關新店">關新店</option>
-            </select>
-          </div>
-          <div class="field"><label>選擇員工</label>
-            <select id="pin-emp-select" onchange="onPinEmpChange()" style="width:100%;"><option value="">-- 選擇員工 --</option></select>
-          </div>
-          <div id="pin-current" style="font-size:.78rem;margin-bottom:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text-dim);">--先選擇員工--</div>
-          <div class="field" style="margin-bottom:10px;"><label>設定密碼</label>
-            <input type="text" id="pin-set-input" placeholder="輸入新密碼" style="width:100%;">
-          </div>
-          <div style="display:flex;gap:8px;">
-            <button class="btn btn-primary" style="flex:1;" onclick="setEmpPin()">設定密碼</button>
-            <button class="btn btn-danger" style="flex:1;" onclick="resetEmpPin()">重置（清除）</button>
-          </div>
-        </div>
+      </div>
+      <!-- 權限管理子分頁 -->
+      <div id="accpanel-permissions" style="display:none;">
+        <div id="permissions-list"><div class="empty"><div class="empty-icon">🔐</div>載入中…</div></div>
       </div>
     </div>
 
@@ -1217,6 +1230,7 @@ function migrateData(d){
   if(!d.counterApplications) d.counterApplications=[];
   if(!d.counterStaff) d.counterStaff=[];
   if(!d.counterShiftOverrides) d.counterShiftOverrides=[];
+  if(!d.adminPermissions) d.adminPermissions={};
   // 清除所有假期的職稱限制
   if(d.periods) d.periods.forEach(p=>{ p.genderRestrict=''; });
   if(!Array.isArray(d.longLeaves)) d.longLeaves=[];
@@ -1479,30 +1493,36 @@ function loginAsAdmin(){
   _currentRole=role; _currentAdminUser=user; _currentEmpId=null;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-header').style.display='flex';
-  const roleLabel=role==='superadmin'?'超級管理員':(isCounter?'櫃檯':'主管');
+  const roleLabel=role==='superadmin'?'超級管理員':adminRole==='負責人'?'負責人':isCounter?'櫃檯':'主管';
   document.getElementById('header-user-info').textContent=`🔧 ${user}（${roleLabel}）`;
   if(window._isLocalMode) document.getElementById('local-mode-banner').style.display='block';
   document.getElementById('admin-view').style.display='block';
   document.getElementById('self-view').style.display='none';
   document.getElementById('btn-change-pin').style.display='none';
-  // 權限控制：超級管理員=全開, 主管=全開（除帳號管理）, 櫃檯=僅假表+歷史紀錄
-  document.getElementById('tab-accounts').style.display=role==='superadmin'?'inline-block':'none';
+  // 權限控制：依角色與自訂 adminPermissions
+  const isManager=adminRole==='負責人';
   document.getElementById('btn-simulate-emp').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-back-to-admin').style.display='none';
   document.getElementById('btn-export-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-copy-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-import-data').style.display=role==='superadmin'?'inline-block':'none';
-  // 櫃檯：隱藏不相關分頁
-  const counterHide=['tab-employees','tab-periods','tab-applications','tab-lottery'];
-  counterHide.forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isCounter?'none':''});
-  // 超級管理員和主管顯示櫃檯管理分頁
-  const tcEl=document.getElementById('tab-counter');
-  if(tcEl)tcEl.style.display=role==='superadmin'||!isCounter?'inline-block':'none';
-  if(isCounter){
-    switchTab('schedule');
-  } else {
-    renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+  const _allTabs=['employees','periods','applications','lottery','schedule','history','counter','accounts'];
+  let _visibleTabs;
+  if(role==='superadmin')      _visibleTabs=new Set(_allTabs);
+  else if(isManager)           _visibleTabs=new Set(_allTabs);
+  else if(isCounter)           _visibleTabs=new Set(['schedule','history','counter']);
+  else                         _visibleTabs=new Set(['employees','periods','applications','lottery','schedule','history','counter']);
+  if(role!=='superadmin'&&foundAdmin){
+    const cp=(data.adminPermissions||{})[foundAdmin.id];
+    if(cp) _visibleTabs=new Set(cp);
   }
+  _allTabs.forEach(t=>{
+    const el=document.getElementById('tab-'+t);
+    if(el) el.style.display=_visibleTabs.has(t)?'inline-block':'none';
+  });
+  // 預設顯示員工管理，若無權限則顯示第一個可見分頁
+  const _defaultTab=_visibleTabs.has('employees')?'employees':(_allTabs.find(t=>_visibleTabs.has(t))||'schedule');
+  switchTab(_defaultTab);
 }
 
 function logout(){
@@ -1602,7 +1622,7 @@ function switchTab(name){
 
   if(name==='schedule'){initSchedule();}
   if(name==='history')renderHistory();
-  if(name==='accounts')renderAccounts();
+  if(name==='accounts'){renderAccounts();switchAccountsTab('accounts');}
   if(name==='counter')initCounterPanel();
 }
 
@@ -4665,6 +4685,95 @@ function adminDragEnd(e){
   document.querySelectorAll('#admin-list [data-adminidx]').forEach(el=>el.style.borderTop='');
   _adminDragIdx=null;
 }
+function switchAccountsTab(tab){
+  document.getElementById('accpanel-accounts').style.display=tab==='accounts'?'block':'none';
+  document.getElementById('accpanel-permissions').style.display=tab==='permissions'?'block':'none';
+  ['accounts','permissions'].forEach(t=>{
+    const b=document.getElementById('acctab-'+t);
+    if(!b) return;
+    const active=t===tab;
+    b.style.color=active?'var(--accent)':'var(--text-dim)';
+    b.style.borderBottom=active?'2px solid var(--accent)':'2px solid transparent';
+    b.style.fontWeight=active?'600':'400';
+  });
+  if(tab==='permissions') renderPermissions();
+}
+
+function getDefaultTabs(role){
+  if(role==='superadmin') return ['employees','periods','applications','lottery','schedule','history','counter','accounts'];
+  if(role==='負責人')     return ['employees','periods','applications','lottery','schedule','history','counter','accounts'];
+  if(role==='櫃檯')       return ['schedule','history','counter'];
+  return ['employees','periods','applications','lottery','schedule','history','counter'];
+}
+
+function renderPermissions(){
+  const el=document.getElementById('permissions-list');
+  if(!el) return;
+  const admins=data.admins||[];
+  const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
+  const sorted=[...admins].sort((a,b)=>{
+    const ra=csOrder.indexOf(a.id)<0?9999:csOrder.indexOf(a.id);
+    const rb=csOrder.indexOf(b.id)<0?9999:csOrder.indexOf(b.id);
+    return ra===rb?(admins.indexOf(a)-admins.indexOf(b)):ra-rb;
+  });
+  const tabDefs=[
+    {id:'employees',label:'員工管理'},
+    {id:'periods',label:'期間管理'},
+    {id:'applications',label:'排假申請'},
+    {id:'lottery',label:'抽籤作業'},
+    {id:'schedule',label:'假表管理'},
+    {id:'history',label:'歷史紀錄'},
+    {id:'counter',label:'櫃檶管理'},
+    {id:'accounts',label:'帳號管理'},
+  ];
+  if(!sorted.length){el.innerHTML='<div style="font-size:.8rem;color:var(--text-dim);">尚無管理員帳號</div>';return;}
+  el.innerHTML=sorted.map(a=>{
+    const perms=(data.adminPermissions||{})[a.id]||getDefaultTabs(a.role||'主管');
+    const permSet=new Set(perms);
+    const canEdit=_canEditAdmin(a.role||'主管');
+    return `<div style="border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-bottom:10px;${canEdit?'':'opacity:.5;'}">
+      <div style="font-weight:600;margin-bottom:8px;">${a.username} <span style="font-size:.78rem;color:var(--text-dim);">（${a.role||'主管'}）</span>${canEdit?'':'<span style="font-size:.68rem;color:var(--text-dim);margin-left:6px;">🔒 無操作權限</span>'}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${tabDefs.map(t=>`<label style="display:flex;align-items:center;gap:4px;font-size:.82rem;cursor:${canEdit?'pointer':'not-allowed'};">
+          <input type="checkbox" ${permSet.has(t.id)?'checked':''} ${canEdit?`onchange="toggleAdminPermission('${a.id}','${t.id}',this.checked)"`:'disabled'}> ${t.label}
+        </label>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleAdminPermission(adminId, tabId, enabled){
+  if(!data.adminPermissions) data.adminPermissions={};
+  const admin=(data.admins||[]).find(a=>a.id===adminId);
+  if(!admin) return;
+  if(!_canEditAdmin(admin.role||'主管')) return toast('權限不足',true);
+  const current=data.adminPermissions[adminId]||getDefaultTabs(admin.role||'主管');
+  let arr=[...new Set(current)];
+  if(enabled){ if(!arr.includes(tabId)) arr.push(tabId); }
+  else { arr=arr.filter(t=>t!==tabId); }
+  data.adminPermissions[adminId]=arr;
+  save();
+}
+
+// 角色等級：數字越大越高，只能操作比自己低的角色
+function _roleRank(role){
+  if(role==='superadmin') return 4;
+  if(role==='負責人')     return 3;
+  if(role==='主管')       return 2;
+  if(role==='櫃檯')       return 1;
+  return 0;
+}
+// 取得目前登入者的角色等級
+function _myRoleRank(){
+  if(_currentRole==='superadmin') return 4;
+  const me=(_currentAdminUser&&(data.admins||[]).find(a=>a.username===_currentAdminUser));
+  return _roleRank(me?.role||'主管');
+}
+// 是否可操作目標管理員（目標角色等級必須嚴格低於自己）
+function _canEditAdmin(targetRole){
+  return _myRoleRank() > _roleRank(targetRole);
+}
+
 function renderAccounts(){
   const admins=data.admins||[];
   const el=document.getElementById('admin-list');
@@ -4684,9 +4793,10 @@ function renderAccounts(){
           <span class="badge b-gray" style="font-size:.58rem;">${a.role||'主管'}</span>
         </div>
         <div style="display:flex;gap:5px;">
+          ${_canEditAdmin(a.role||'主管')?`
           <button class="btn btn-ghost" style="padding:3px 9px;font-size:.6rem;" onclick="openEditAdmin('${a.id}')">編輯</button>
           <button class="btn btn-ghost" style="padding:3px 9px;font-size:.6rem;" onclick="changeAdminPw('${a.id}')">改密碼</button>
-          <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="removeAdmin('${a.id}')">刪除</button>
+          <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="removeAdmin('${a.id}')">刪除</button>`:''}
         </div>
       </div>`).join('');
   }
@@ -4741,6 +4851,7 @@ function addAdmin(){
 function changeAdminPw(id){
   const admin=(data.admins||[]).find(a=>a.id===id);
   if(!admin)return;
+  if(!_canEditAdmin(admin.role||'主管')) return toast('權限不足，無法修改此帳號密碼',true);
   document.getElementById('modal-title').textContent=`修改「${admin.username}」密碼`;
   document.getElementById('modal-msg').innerHTML=`
     <div class="field" style="margin-bottom:10px;"><label>新密碼</label>
@@ -4758,6 +4869,8 @@ function changeAdminPw(id){
   };
 }
 function removeAdmin(id){
+  const target=(data.admins||[]).find(a=>a.id===id);
+  if(!target||!_canEditAdmin(target.role||'主管')) return toast('權限不足，無法刪除此帳號',true);
   showModal('刪除管理員','確定要刪除此管理員帳號？',()=>{
     data.admins=(data.admins||[]).filter(a=>a.id!==id);
     save();renderAccounts();toast('✓ 已刪除');
@@ -4767,6 +4880,7 @@ let _editAdminId=null;
 function openEditAdmin(id){
   const a=(data.admins||[]).find(x=>x.id===id);
   if(!a)return;
+  if(!_canEditAdmin(a.role||'主管')) return toast('權限不足，無法編輯此帳號',true);
   _editAdminId=id;
   document.getElementById('edit-admin-user').value=a.username;
   document.getElementById('edit-admin-role').value=a.role||'主管';
