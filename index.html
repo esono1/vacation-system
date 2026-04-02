@@ -801,6 +801,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
               <option value="male">足師</option>
               <option value="female">體師</option>
               <option value="__counter__">櫃檶</option>
+              <option value="__cleaner__">清潔人員</option>
             </select>
           </div>
           <div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap;">
@@ -981,11 +982,12 @@ tr:hover td{background:rgba(255,255,255,.018);}
               <option value="竹北店">竹北店</option>
               <option value="關新店">關新店</option>
             </select>
-            <select id="cleaner-staff-shift" style="padding:6px 10px;font-size:.78rem;">
+            <select id="cleaner-staff-shift" onchange="onCleanerStaffShiftChange()" style="padding:6px 10px;font-size:.78rem;">
               <option value="早班">早班</option>
               <option value="晚班">晚班</option>
-              <option value="特別班">特別班</option>
+              <option value="自定義">自定義</option>
             </select>
+            <input type="text" id="cleaner-staff-shiftname" placeholder="HH-HH" maxlength="5" style="display:none;width:64px;padding:5px 6px;font-size:.78rem;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);">
             <button class="btn btn-primary" style="font-size:.72rem;padding:6px 14px;" onclick="addCleanerStaff()">新增</button>
           </div>
         </div>
@@ -1012,7 +1014,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
                   <select id="cleaner-shift" onchange="onCleanerShiftChange()" style="padding:6px 10px;font-size:.78rem;">
                     <option value="早班">早班</option>
                     <option value="晚班">晚班</option>
-                    <option value="特別班">特別班</option>
+                    <option value="自定義">自定義</option>
                   </select>
                   <div id="cleaner-custom-wrap" style="display:none;gap:6px;align-items:center;">
                     <input type="text" id="cleaner-custom-start" placeholder="HHMM" maxlength="4" oninput="this.value=this.value.replace(/[^0-9]/g,'')" onblur="if(this.value.length===4)this.value=this.value.slice(0,2)+':'+this.value.slice(2)" style="padding:5px;font-size:.78rem;width:70px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);">
@@ -1795,6 +1797,14 @@ function onCleanerNameChange(){
     const shiftEl=document.getElementById('cleaner-shift');
     if(storeEl&&s.store) storeEl.value=s.store;
     if(shiftEl&&s.shift){ shiftEl.value=s.shift; onCleanerShiftChange(); }
+    // 自定義班別：從班別名稱 HH-HH 預填自訂時間
+    if(s.shift==='自定義'&&s.shiftName&&/^\d{2}-\d{2}$/.test(s.shiftName)){
+      const parts=s.shiftName.split('-');
+      const cs=document.getElementById('cleaner-custom-start');
+      const ce=document.getElementById('cleaner-custom-end');
+      if(cs) cs.value=parts[0]+':00';
+      if(ce) ce.value=parts[1]+':00';
+    }
   }
   onCleanerPeriodChange();
 }
@@ -1819,7 +1829,7 @@ function onCleanerPeriodChange(preCheck=true){
 function onCleanerShiftChange(){
   const v=document.getElementById('cleaner-shift').value;
   const wrap=document.getElementById('cleaner-custom-wrap');
-  if(wrap) wrap.style.display=v==='特別班'?'flex':'none';
+  if(wrap) wrap.style.display=v==='自定義'?'flex':'none';
 }
 function addCleanerSchedule(){
   const name=document.getElementById('cleaner-name').value;
@@ -1829,10 +1839,10 @@ function addCleanerSchedule(){
   if(!name)return toast('請選擇清潔人員',true);
   if(!pid)return toast('請選擇假期',true);
   let customStart='',customEnd='';
-  if(shift==='特別班'){
+  if(shift==='自定義'){
     customStart=document.getElementById('cleaner-custom-start').value.replace(/[^0-9]/g,'').replace(/^(\d{2})(\d{1,2})$/,'$1:$2');
     customEnd=document.getElementById('cleaner-custom-end').value.replace(/[^0-9]/g,'').replace(/^(\d{2})(\d{1,2})$/,'$1:$2');
-    if(!customStart||!customEnd)return toast('請輸入特別班自訂時間',true);
+    if(!customStart||!customEnd)return toast('請輸入自定義班別時間',true);
   }
   const p=data.periods.find(x=>x.id===pid);
   if(!p)return;
@@ -1884,7 +1894,7 @@ function renderCleanerOverview(){
       <div class="app-shift-body">
         ${g.items.sort((a,b)=>a.date.localeCompare(b.date)).map(x=>{
           const shiftLabel=(x.shift||x.time||'');
-          const timeHint=shiftLabel==='特別班'&&x.customStart&&x.customEnd
+          const timeHint=shiftLabel==='自定義'&&x.customStart&&x.customEnd
             ?` ${x.customStart}~${x.customEnd}`
             :SHIFT_TIME[shiftLabel]?` ${SHIFT_TIME[shiftLabel]}`:'';
           return `<div class="day-row" style="display:flex;align-items:center;justify-content:space-between;gap:6px;padding:4px 0;">
@@ -1916,7 +1926,7 @@ function renderCleanerPreview(periodId, containerId){
     schedMap[x.name][x.date]=x;
   });
   const _clSp=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
-  const _clSh=s=>s==='早班'?'早':s==='晚班'?'晚':s==='特別班'?'特':'';
+  const _clSh=s=>s==='早班'?'早':s==='晚班'?'晚':'';
   let html='<div style="overflow-x:auto;margin-top:8px;"><table class="sch-table" style="width:auto;min-width:100%;"><thead><tr>';
   html+=`<th style="text-align:left;padding:5px 10px;white-space:nowrap;min-width:70px;font-size:.68rem;">日期</th>`;
   staff.forEach(s=>{
@@ -1938,7 +1948,7 @@ function renderCleanerPreview(periodId, containerId){
         const shift=sched.shift||sched.time||'';
         const storeAbbr=_clSp(sched.store||'');
         let cellText='';
-        if(shift==='特別班'&&sched.customStart&&sched.customEnd){
+        if(sched.customStart&&sched.customEnd){
           // 例：竹09-12
           const s1=(sched.customStart||'').slice(0,2);
           const e1=(sched.customEnd||'').slice(0,2);
@@ -4378,15 +4388,23 @@ function refreshCleanerStaffNameSelect(){
   });
   if(cur) sel.value=cur;
 }
+function onCleanerStaffShiftChange(){
+  const v=document.getElementById('cleaner-staff-shift').value;
+  const ni=document.getElementById('cleaner-staff-shiftname');
+  if(ni) ni.style.display=v==='自定義'?'':'none';
+}
 function addCleanerStaff(){
   const name=document.getElementById('cleaner-staff-name').value.trim();
   const store=document.getElementById('cleaner-staff-store').value;
   const shift=document.getElementById('cleaner-staff-shift').value;
+  const shiftName=shift==='自定義'?(document.getElementById('cleaner-staff-shiftname').value.trim()||''):'';
   if(!name) return toast('請選擇員工',true);
+  if(shift==='自定義'&&!/^\d{2}-\d{2}$/.test(shiftName)) return toast('請輸入自定義班別名稱（格式 HH-HH）',true);
   if(!data.cleanerStaff) data.cleanerStaff=[];
   if(data.cleanerStaff.find(x=>x.name===name)) return toast('該員工已在名單中',true);
-  data.cleanerStaff.push({id:`cstf_${Date.now()}`,name,store,shift});
+  data.cleanerStaff.push({id:`cstf_${Date.now()}`,name,store,shift,shiftName});
   document.getElementById('cleaner-staff-name').value='';
+  document.getElementById('cleaner-staff-shiftname').value='';
   save(); renderCleanerStaff(); refreshCleanerNameSelect(); toast('✓ 已新增清潔人員');
 }
 function removeCleanerStaff(id){
@@ -4431,7 +4449,11 @@ function updateCleanerStaffStore(id, store){
 }
 function updateCleanerStaffShift(id, shift){
   const s=(data.cleanerStaff||[]).find(x=>x.id===id);
-  if(s){ s.shift=shift; save(); renderCleanerStaff(); toast('✓ 已更新'); }
+  if(s){ s.shift=shift; if(shift!=='自定義') s.shiftName=''; save(); renderCleanerStaff(); toast('✓ 已更新'); }
+}
+function updateCleanerStaffShiftName(id, shiftName){
+  const s=(data.cleanerStaff||[]).find(x=>x.id===id);
+  if(s){ s.shiftName=shiftName.trim(); save(); refreshCleanerNameSelect(); toast('✓ 班別已更新'); }
 }
 function renderCleanerStaff(){
   const el=document.getElementById('cleaner-staff-list');
@@ -4442,7 +4464,7 @@ function renderCleanerStaff(){
     el.innerHTML='<div class="empty" style="padding:16px 0;"><div class="empty-icon">🧑‍🔧</div>尚未新增清潔人員</div>';
     return;
   }
-  const SHIFT_DESC={早班:'13:00–18:00',晚班:'18:30–22:00',特別班:''};
+  const SHIFT_DESC={早班:'13:00–18:00',晚班:'18:30–22:00'};
   el.innerHTML=staff.map((s,idx)=>`
     <div draggable="true" data-clsidx="${idx}"
       ondragstart="cleanerStaffDragStart(event,${idx})"
@@ -4456,7 +4478,7 @@ function renderCleanerStaff(){
           <span style="font-family:'Space Mono',monospace;font-size:.78rem;font-weight:600;">🧑‍🔧 ${s.name}</span>
           ${s.nickname?`<span class="badge b-blue" style="font-size:.58rem;">${s.nickname}</span>`:''}
           ${s.store?`<span class="badge b-gray" style="font-size:.58rem;">${s.store}</span>`:''}
-          ${s.shift?`<span class="badge b-green" style="font-size:.58rem;">${s.shift}</span>`:''}
+          ${s.shift?`<span class="badge b-green" style="font-size:.58rem;">${s.shift==='自定義'&&s.shiftName?s.shiftName:s.shift}</span>`:''}
           ${s.shift&&SHIFT_DESC[s.shift]?`<span style="font-size:.7rem;color:var(--text-dim);margin-left:2px;">${SHIFT_DESC[s.shift]}</span>`:''}
         </div>
       </div>
@@ -4470,8 +4492,9 @@ function renderCleanerStaff(){
         <select onchange="updateCleanerStaffShift('${s.id}',this.value)" style="padding:3px 7px;font-size:.72rem;">
           <option value="早班" ${s.shift==='早班'?'selected':''}>早班</option>
           <option value="晚班" ${s.shift==='晚班'?'selected':''}>晚班</option>
-          <option value="特別班" ${s.shift==='特別班'?'selected':''}>特別班</option>
+          <option value="自定義" ${s.shift==='自定義'?'selected':''}>自定義</option>
         </select>
+        ${s.shift==='自定義'?`<input type="text" placeholder="HH-HH" value="${s.shiftName||''}" maxlength="5" style="width:60px;padding:3px 5px;font-size:.72rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);" onchange="updateCleanerStaffShiftName('${s.id}',this.value)" onblur="updateCleanerStaffShiftName('${s.id}',this.value)">`:``}
         <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="removeCleanerStaff('${s.id}')">刪除</button>
       </div>
     </div>`).join('');
@@ -4974,11 +4997,12 @@ function renderSchedule(){
   if(!period)return;
   const dates=getDates(period.start,period.end);
   const _isCounterOnly=filterGender==='__counter__';
+  const _isCleanerOnly=filterGender==='__cleaner__';
   const shifts=filterShift?[filterShift]:data.departments;
   const statusMap=buildStatusMap(period);
-  const allEmps=_isCounterOnly?[]:data.employees.filter(e=>{
+  const allEmps=(_isCounterOnly||_isCleanerOnly)?[]:data.employees.filter(e=>{
     if(!shifts.includes(e.dept)) return false;
-    if(filterGender && filterGender!=='__counter__' && (e.gender||'male')!==filterGender) return false;
+    if(filterGender && filterGender!=='__counter__' && filterGender!=='__cleaner__' && (e.gender||'male')!==filterGender) return false;
     if(filterStore && (e.store||'竹北店')!==filterStore) return false;
     return true;
   });
@@ -4991,11 +5015,22 @@ function renderSchedule(){
     const _csAdmin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||s.adminName,role:_csAdmin?.role||'主管',shift:s.shift||'',store:s.store||''};
   }):[];
-  // 建立櫃檯 dateMap: adminId -> Set of dates
+  // 建立櫃檶 dateMap: adminId -> Set of dates
   const counterDateMap={};
   counterInPeriod.forEach(a=>{
     if(!counterDateMap[a.adminId]) counterDateMap[a.adminId]=new Set();
     counterDateMap[a.adminId].add(a.date);
+  });
+  // 清潔人員（無職稱篩選或選清潔時顯示，排序最後）
+  const _showCleaner=!filterGender||_isCleanerOnly;
+  const _clSp2=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
+  const _clSh2=s=>s==='早班'?'早':s==='晚班'?'晚':'';
+  const _cleanerAll=_showCleaner?(data.cleanerStaff||[]):[];
+  const _cleanerList=filterStore?_cleanerAll.filter(s=>!s.store||s.store===filterStore):_cleanerAll;
+  const _cleanerSchedMap={};
+  if(_showCleaner)(data.cleanerSchedules||[]).filter(x=>x.periodId===pid).forEach(x=>{
+    if(!_cleanerSchedMap[x.name])_cleanerSchedMap[x.name]={};
+    _cleanerSchedMap[x.name][x.date]=x;
   });
   const ON_LEAVE=['lottery','direct','extra'];
   const STATUS_ICON={lottery:'●',direct:'●',extra:'▲',loser:'✕',pending:'◐','el-pending':'?'};
@@ -5014,6 +5049,7 @@ function renderSchedule(){
       if(!emps.length)return;
       html+=`<th colspan="${emps.length}" style="text-align:center;padding:5px 6px;background:rgba(232,200,74,.08);color:var(--accent);font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;border-left:2px solid var(--border);">${shift}</th>`;
     });
+    if(_cleanerList.length) html+=`<th colspan="${_cleanerList.length}" style="text-align:center;padding:5px 6px;background:rgba(80,200,140,.08);color:var(--green);font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;border-left:2px solid var(--border);">清潔</th>`;
     html+='</tr>';
     // 第二列：名字（櫃檯優先）
     html+='<tr><th style="padding:4px 10px;font-size:.58rem;color:var(--text-dim);font-weight:400;"></th>';
@@ -5032,6 +5068,12 @@ function renderSchedule(){
           ${isLoser?`<br><button onclick="adminMakeup(${pid},${emp.id})" style="font-size:.48rem;padding:1px 3px;background:rgba(122,180,240,.15);border:1px solid rgba(122,180,240,.4);border-radius:2px;cursor:pointer;color:#7ab4f0;">補假</button>`:''}
         </th>`;
       });
+    });
+    _cleanerList.forEach((s,i)=>{
+      const dispName=s.nickname||s.name;
+      const storeAbbr=_clSp2(s.store||'');
+      const shiftInfo=s.shift==='自定義'&&s.shiftName?storeAbbr+s.shiftName:storeAbbr+_clSh2(s.shift||'');
+      html+=`<th style="text-align:center;padding:4px 5px;min-width:44px;font-size:.66rem;font-weight:600;white-space:nowrap;color:var(--green);${i===0?'border-left:2px solid var(--border)':''}">${dispName}<br><span style="font-size:.52rem;font-weight:400;opacity:.7;">${shiftInfo}</span></th>`;
     });
     html+='</tr></thead><tbody>';
 
@@ -5080,6 +5122,20 @@ function renderSchedule(){
           html+=`<td class="${cls}" title="${title}" style="${borderStyle};${closedStyle};${wkdBg}"><span class="cell-dot">${icon}</span></td>`;
         });
       });
+      _cleanerList.forEach((s,i)=>{
+        const sched=_cleanerSchedMap[s.name]&&_cleanerSchedMap[s.name][d];
+        let label='';
+        if(sched){
+          const sh=sched.shift||'';
+          const sa=_clSp2(sched.store||'');
+          if(sched.customStart&&sched.customEnd){
+            label=sa+(sched.customStart||'').slice(0,2)+'-'+(sched.customEnd||'').slice(0,2);
+          } else {
+            label=sa+_clSh2(sh);
+          }
+        }
+        html+=`<td title="${label}" style="${i===0?'border-left:2px solid var(--border)':''}"><span class="cell-dot" style="${label?'font-size:.6rem;font-weight:600;color:var(--green);':''}">${label}</span></td>`;
+      });
       html+='</tr>';
     });
 
@@ -5097,6 +5153,10 @@ function renderSchedule(){
         const count=dates.filter(d=>ON_LEAVE.includes(empMap[d])).length;
         html+=`<td style="text-align:center;font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;color:${count>0?'var(--accent)':'var(--text-dim)'};${i===0?'border-left:2px solid var(--border)':''}">${count}</td>`;
       });
+    });
+    _cleanerList.forEach((s,i)=>{
+      const count=dates.filter(d=>_cleanerSchedMap[s.name]&&_cleanerSchedMap[s.name][d]).length;
+      html+=`<td style="text-align:center;font-family:'Space Mono',monospace;font-size:.68rem;font-weight:700;color:${count>0?'var(--green)':'var(--text-dim)'};${i===0?'border-left:2px solid var(--border)':''}">${count}</td>`;
     });
     html+='</tr></tbody></table></div>';
     document.getElementById('sch-calendar-table').innerHTML=html;
