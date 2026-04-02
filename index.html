@@ -3816,6 +3816,8 @@ function exportScheduleExcel(){
       statShifts.forEach(sh=>row.push(allEmps.filter(e=>e.dept===sh).filter(emp=>ON_LEAVE.includes((statusMap[emp.id]||{})[d])).length));
       rows.push(row);
     });
+    // 最後一天下方空一列
+    rows.push(new Array(totalEmpCols+2+statShifts.length).fill(''));
     const fN=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>fN.push(emp.name)));statShifts.forEach(()=>fN.push(''));rows.push(fN);
     const fT=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>fT.push(titleOf(emp))));statShifts.forEach(()=>fT.push(''));rows.push(fT);
     const colWidths=[5.875,4.875];
@@ -3829,11 +3831,10 @@ function exportScheduleExcel(){
     return {rows,merges,colWidths,holidayRowIdxs};
   }
 
-  // ── 櫃檶工作表 ──
+  // ── 櫃檶＋清潔工作表 ──
   function buildCounterSheet(){
     const counterApps=data.counterApplications||[];
     const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
-    if(!counterInPeriod.length)return null;
     const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
     const counterAdminIds=[...new Set(counterInPeriod.map(a=>a.adminId))];
     counterAdminIds.sort((a,b)=>{
@@ -3851,9 +3852,11 @@ function exportScheduleExcel(){
       if(!counterDateMap[a.adminId])counterDateMap[a.adminId]=new Set();
       counterDateMap[a.adminId].add(a.date);
     });
-    const overrideMap={};
-    // 店別前綴：竹北店→竹、關新店→關、無→空
+    // 店別前綴
     const _sp=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
+    // 時間格式化：去除冒號，MM為00時只顯示HH
+    const fmtT=t=>{if(!t)return '';const m=(t+'').match(/^(\d{1,2}):(\d{2})$/);if(!m)return String(t);return m[2]==='00'?m[1]:m[1]+m[2];};
+    const overrideMap={};
     (data.counterShiftOverrides||[]).filter(x=>dates.includes(x.date)).forEach(x=>{
       if(!overrideMap[x.adminId])overrideMap[x.adminId]={};
       const _ovSi=(data.counterStaff||[]).find(s=>s.adminId===x.adminId);
@@ -3861,14 +3864,30 @@ function exportScheduleExcel(){
       const _ovStr=x.store||'';
       const _ovPfx=(_ovStr&&_ovStr!==_ovDef)?_sp(_ovStr):'';
       const _ovDefPfx=_sp(_ovDef);
-      overrideMap[x.adminId][x.date]=x.shift==='custom'?`${_ovPfx||_ovDefPfx}${x.customStart}-${x.customEnd}`:_ovPfx+x.shift;
+      overrideMap[x.adminId][x.date]=x.shift==='custom'?`${_ovPfx||_ovDefPfx}${fmtT(x.customStart)}-${fmtT(x.customEnd)}`:_ovPfx+x.shift;
     });
     const _shiftLabel=ca=>(_sp(ca.store||''))+(ca.shift||'');
+    // 清潔人員（依店別篩選）
+    const _clSp=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
+    const _clSh=s=>s==='早班'?'早':s==='晚班'?'晚':'';
+    const allCleaners=(data.cleanerStaff||[]).filter(s=>!filterStore||!s.store||s.store===filterStore);
+    const cleanerScheds=(data.cleanerSchedules||[]).filter(x=>x.periodId===pid);
+    const cleanerSchedMap={};
+    cleanerScheds.forEach(x=>{if(!cleanerSchedMap[x.name])cleanerSchedMap[x.name]={};cleanerSchedMap[x.name][x.date]=x;});
     const n=counterAdmins.length;
+    const nCl=allCleaners.length;
+    if(!n&&!nCl)return null;
+    const SEP=2;
+    const totalCols=2+n+SEP+nCl;
     const rows=[];
-    const r1=[rocMStr];for(let i=1;i<n+2;i++)r1.push('');rows.push(r1);
-    const r2=['',''];counterAdmins.forEach(ca=>r2.push(_shiftLabel(ca)));rows.push(r2);
-    const r3=['星期',''];counterAdmins.forEach(ca=>r3.push(ca.name));rows.push(r3);
+    const r1=[rocMStr];for(let i=1;i<totalCols;i++)r1.push('');rows.push(r1);
+    const r2=['',''];counterAdmins.forEach(ca=>r2.push(_shiftLabel(ca)));
+    for(let i=0;i<SEP;i++)r2.push('');
+    allCleaners.forEach(s=>{const si=s.shift==='自定義'&&s.shiftName?_clSp(s.store)+s.shiftName:_clSp(s.store)+_clSh(s.shift);r2.push(si);});
+    rows.push(r2);
+    const r3=['星期',''];counterAdmins.forEach(ca=>r3.push(ca.name));
+    for(let i=0;i<SEP;i++)r3.push('');
+    allCleaners.forEach(s=>r3.push(s.nickname||s.name));rows.push(r3);
     const holidayRowIdxs=[];
     dates.forEach((d,di)=>{
       const dt=period.dateTypes||{};
@@ -3879,14 +3898,24 @@ function exportScheduleExcel(){
         if(counterDateMap[ca.id]?.has(d))row.push('R');
         else row.push((overrideMap[ca.id]?.[d])||_shiftLabel(ca)||'');
       });
+      for(let i=0;i<SEP;i++)row.push('');
+      allCleaners.forEach(s=>{
+        const sched=cleanerSchedMap[s.name]?.[d];
+        if(sched){const sp=_clSp(sched.store||s.store||'');if(sched.customStart&&sched.customEnd){row.push(sp+fmtT(sched.customStart)+'-'+fmtT(sched.customEnd));}else{row.push(sp+_clSh(sched.shift||''));}}
+        else{row.push('');}
+      });
       rows.push(row);
     });
+    // 最後一天下方空一列
+    rows.push(new Array(totalCols).fill(''));
     // 頁尾：名稱列 + 班別列
-    const fN=['',''];counterAdmins.forEach(ca=>fN.push(ca.name));rows.push(fN);
-    const fS=['',''];counterAdmins.forEach(ca=>fS.push(_shiftLabel(ca)));rows.push(fS);
+    const fN=['',''];counterAdmins.forEach(ca=>fN.push(ca.name));for(let i=0;i<SEP;i++)fN.push('');allCleaners.forEach(s=>fN.push(s.nickname||s.name));rows.push(fN);
+    const fS=['',''];counterAdmins.forEach(ca=>fS.push(_shiftLabel(ca)));for(let i=0;i<SEP;i++)fS.push('');allCleaners.forEach(s=>{const si=s.shift==='自定義'&&s.shiftName?_clSp(s.store)+s.shiftName:_clSp(s.store)+_clSh(s.shift);fS.push(si);});rows.push(fS);
     const colWidths=[5.875,4.875];
     counterAdmins.forEach(()=>colWidths.push(5));
-    const merges=[{sr:1,er:1,sc:1,ec:n+2}];
+    for(let i=0;i<SEP;i++)colWidths.push(3);
+    allCleaners.forEach(()=>colWidths.push(5));
+    const merges=[{sr:1,er:1,sc:1,ec:totalCols}];
     return {rows,merges,colWidths,holidayRowIdxs};
   }
 
@@ -4482,19 +4511,19 @@ function renderCleanerStaff(){
           ${s.shift&&SHIFT_DESC[s.shift]?`<span style="font-size:.7rem;color:var(--text-dim);margin-left:2px;">${SHIFT_DESC[s.shift]}</span>`:''}
         </div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
         <input type="text" placeholder="暱稱" value="${s.nickname||''}" style="width:64px;padding:3px 6px;font-size:.72rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);" onchange="updateCleanerStaffNickname('${s.id}',this.value)" onblur="updateCleanerStaffNickname('${s.id}',this.value)">
-        <select onchange="updateCleanerStaffStore('${s.id}',this.value)" style="padding:3px 7px;font-size:.72rem;">
+        <select onchange="updateCleanerStaffStore('${s.id}',this.value)" style="padding:2px 4px;font-size:.65rem;max-width:72px;">
           <option value="" ${!s.store?'selected':''}>全部</option>
           <option value="竹北店" ${s.store==='竹北店'?'selected':''}>竹北店</option>
           <option value="關新店" ${s.store==='關新店'?'selected':''}>關新店</option>
         </select>
-        <select onchange="updateCleanerStaffShift('${s.id}',this.value)" style="padding:3px 7px;font-size:.72rem;">
+        <select onchange="updateCleanerStaffShift('${s.id}',this.value)" style="padding:2px 4px;font-size:.65rem;max-width:68px;">
           <option value="早班" ${s.shift==='早班'?'selected':''}>早班</option>
           <option value="晚班" ${s.shift==='晚班'?'selected':''}>晚班</option>
           <option value="自定義" ${s.shift==='自定義'?'selected':''}>自定義</option>
         </select>
-        ${s.shift==='自定義'?`<input type="text" placeholder="HH-HH" value="${s.shiftName||''}" maxlength="5" style="width:60px;padding:3px 5px;font-size:.72rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);" onchange="updateCleanerStaffShiftName('${s.id}',this.value)" onblur="updateCleanerStaffShiftName('${s.id}',this.value)">`:``}
+        ${s.shift==='自定義'?`<input type="text" placeholder="HH-HH" value="${s.shiftName||''}" maxlength="5" style="width:54px;padding:3px 5px;font-size:.72rem;background:var(--surface2);border:1px solid var(--border);border-radius:5px;color:var(--text);" onchange="updateCleanerStaffShiftName('${s.id}',this.value)" onblur="updateCleanerStaffShiftName('${s.id}',this.value)">`:``}
         <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="removeCleanerStaff('${s.id}')">刪除</button>
       </div>
     </div>`).join('');
