@@ -3701,7 +3701,11 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
     },
     // 多工作表版（含 shared strings，供 exportScheduleExcel 使用）
     writeSheets(sheetDefs){
-      // sheetDefs: [{name, rows, merges, colWidths, holidayRowIdxs}]
+      // sheetDefs: [{name, rows, merges, colWidths, holidayRowIdxs, cellStyleFn?}]
+      // Border index guide (LRTB: M=medium, t=thin):
+      // 0:none 1:tttt 2:MMtt 3:MMMM 4:MMtM 5:Mttt 6:MtMM 7:MttM 8:MtMt
+      // 9:ttMM 10:tttM 11:ttMt 12:tMtt 13:tMMM 14:tMtM 15:tMMt
+      const _b=(l,r,t,b)=>{const s=(v,n)=>v==='M'?`<${n} style="medium"><color rgb="FF000000"/></${n}>`:`<${n} style="thin"><color rgb="FF000000"/></${n}>`;return `<border>${s(l,'left')}${s(r,'right')}${s(t,'top')}${s(b,'bottom')}<diagonal/></border>`;};
       const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
 <fonts count="2">
@@ -3713,32 +3717,53 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
  <fill><patternFill patternType="gray125"/></fill>
  <fill><patternFill patternType="solid"><fgColor rgb="FFFF9B9B"/><bgColor indexed="64"/></patternFill></fill>
 </fills>
-<borders count="2">
+<borders count="16">
  <border><left/><right/><top/><bottom/><diagonal/></border>
- <border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>
+ ${_b('t','t','t','t')} ${_b('M','M','t','t')} ${_b('M','M','M','M')} ${_b('M','M','t','M')}
+ ${_b('M','t','t','t')} ${_b('M','t','M','M')} ${_b('M','t','t','M')} ${_b('M','t','M','t')}
+ ${_b('t','t','M','M')} ${_b('t','t','t','M')} ${_b('t','t','M','t')}
+ ${_b('t','M','t','t')} ${_b('t','M','M','M')} ${_b('t','M','t','M')} ${_b('t','M','M','t')}
 </borders>
 <cellStyleXfs count="1">
  <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
 </cellStyleXfs>
-<cellXfs count="3">
+<cellXfs count="20">
  <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
  <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
  <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="5" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="5" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="6" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="7" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="8" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="9" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="12" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="15" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
       // shared strings across ALL sheets
       const ssMap={},ssArr=[];let ssCount=0;
       function ssi(v){const k=String(v);if(ssMap[k]===undefined){ssMap[k]=ssArr.length;ssArr.push(k);}ssCount++;return ssMap[k];}
-      // build each sheet XML (two-pass: first pass fills ssMap)
-      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs}){
+      // build each sheet XML
+      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs,cellStyleFn}){
         const hSet=new Set(holidayRowIdxs||[]);
         let sheetRows='';
         rows.forEach((row,ri)=>{
-          const xf=hSet.has(ri)?2:1;
+          const isHol=hSet.has(ri);
           let cells='';
           row.forEach((val,ci)=>{
             const addr=colName(ci+1)+(ri+1);
+            const xf=cellStyleFn?cellStyleFn(ri,ci,isHol):(isHol?2:1);
             if(typeof val==='number'){cells+=`<c r="${addr}" t="n" s="${xf}"><v>${val}</v></c>`;}
             else{cells+=`<c r="${addr}" t="s" s="${xf}"><v>${ssi(val===null||val===undefined?'':val)}</v></c>`;}
           });
@@ -3805,7 +3830,7 @@ function exportScheduleExcel(){
     const r2=['',''];shiftEmps.forEach(({shift,emps})=>{r2.push(shift);for(let i=1;i<emps.length;i++)r2.push('');});
     r2.push('當日休假人數');for(let i=1;i<statShifts.length;i++)r2.push('');rows.push(r2);
     const r3=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r3.push(titleOf(emp))));statShifts.forEach(sh=>r3.push(sh.charAt(0)));rows.push(r3);
-    const r4=['星期',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r4.push(emp.name)));statShifts.forEach(()=>r4.push(''));rows.push(r4);
+    const r4=['','星期'];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r4.push(emp.name)));statShifts.forEach(()=>r4.push(''));rows.push(r4);
     const holidayRowIdxs=[];
     dates.forEach((d,di)=>{
       const dt=period.dateTypes||{};
@@ -3828,7 +3853,23 @@ function exportScheduleExcel(){
     let col=3;
     shiftEmps.forEach(({emps})=>{if(emps.length>1)merges.push({sr:2,er:2,sc:col,ec:col+emps.length-1});col+=emps.length;});
     if(statShifts.length>1)merges.push({sr:2,er:2,sc:col,ec:col+statShifts.length-1});
-    return {rows,merges,colWidths,holidayRowIdxs};
+    // Build column type array for border logic
+    const nDatesEmp=dates.length;
+    const nameHdrIdx=3,dataStartIdx=4,emptyRowIdx=4+nDatesEmp,fnIdx=4+nDatesEmp+1,ftIdx=4+nDatesEmp+2;
+    const colTypesEmp=['ab','ab'];
+    shiftEmps.forEach(({emps})=>emps.forEach((e,i)=>colTypesEmp.push(emps.length===1?'only':i===0?'first':i===emps.length-1?'last':'mid')));
+    statShifts.forEach((s,i)=>colTypesEmp.push(statShifts.length===1?'only':i===0?'first':i===statShifts.length-1?'last':'mid'));
+    function empCellStyleFn(ri,ci,isHol){
+      const ct=colTypesEmp[ci]||'mid';
+      const isAB=ct==='ab'||ct==='only';const isF=ct==='first';const isM=ct==='mid';const isL=ct==='last';
+      if(ri===nameHdrIdx){if(isAB)return 5;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
+      if(ri>=dataStartIdx&&ri<emptyRowIdx){if(isAB)return isHol?4:3;if(isF)return isHol?8:7;if(isM)return isHol?2:1;if(isL)return isHol?16:15;}
+      if(ri===emptyRowIdx){if(isAB)return 3;if(isF)return 10;if(isM)return 13;if(isL)return 18;}
+      if(ri===fnIdx){if(isAB)return 3;if(isF)return 11;if(isM)return 14;if(isL)return 19;}
+      if(ri===ftIdx){if(isAB)return 6;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
+      if(isAB)return 3;if(isF)return 7;if(isM)return 1;if(isL)return 15;return 1;
+    }
+    return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:empCellStyleFn};
   }
 
   // ── 櫃檶＋清潔工作表 ──
@@ -3885,7 +3926,7 @@ function exportScheduleExcel(){
     for(let i=0;i<SEP;i++)r2.push('');
     allCleaners.forEach(s=>{const si=s.shift==='自定義'&&s.shiftName?_clSp(s.store)+s.shiftName:_clSp(s.store)+_clSh(s.shift);r2.push(si);});
     rows.push(r2);
-    const r3=['星期',''];counterAdmins.forEach(ca=>r3.push(ca.name));
+    const r3=['','星期'];counterAdmins.forEach(ca=>r3.push(ca.name));
     for(let i=0;i<SEP;i++)r3.push('');
     allCleaners.forEach(s=>r3.push(s.nickname||s.name));rows.push(r3);
     const holidayRowIdxs=[];
@@ -3916,7 +3957,24 @@ function exportScheduleExcel(){
     for(let i=0;i<SEP;i++)colWidths.push(3);
     allCleaners.forEach(()=>colWidths.push(5));
     const merges=[{sr:1,er:1,sc:1,ec:totalCols}];
-    return {rows,merges,colWidths,holidayRowIdxs};
+    // Build column type array for border logic
+    const nDatesCtr=dates.length;
+    const ctrNameHdrIdx=2,ctrDataStart=3,ctrEmptyIdx=3+nDatesCtr,ctrFnIdx=3+nDatesCtr+1,ctrFtIdx=3+nDatesCtr+2;
+    const colTypesCtr=['ab','ab'];
+    counterAdmins.forEach(()=>colTypesCtr.push('only'));
+    for(let i=0;i<SEP;i++)colTypesCtr.push('mid');
+    allCleaners.forEach(()=>colTypesCtr.push('only'));
+    function ctrCellStyleFn(ri,ci,isHol){
+      const ct=colTypesCtr[ci]||'mid';
+      const isAB=ct==='ab'||ct==='only';const isF=ct==='first';const isM=ct==='mid';const isL=ct==='last';
+      if(ri===ctrNameHdrIdx){if(isAB)return 5;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
+      if(ri>=ctrDataStart&&ri<ctrEmptyIdx){if(isAB)return isHol?4:3;if(isF)return isHol?8:7;if(isM)return isHol?2:1;if(isL)return isHol?16:15;}
+      if(ri===ctrEmptyIdx){if(isAB)return 3;if(isF)return 10;if(isM)return 13;if(isL)return 18;}
+      if(ri===ctrFnIdx){if(isAB)return 3;if(isF)return 11;if(isM)return 14;if(isL)return 19;}
+      if(ri===ctrFtIdx){if(isAB)return 6;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
+      if(isAB)return 3;if(isF)return 7;if(isM)return 1;if(isL)return 15;return 1;
+    }
+    return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:ctrCellStyleFn};
   }
 
   const sheetDefs=[
