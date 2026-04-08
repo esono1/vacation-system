@@ -1135,7 +1135,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <div class="section-title">歷史紀錄</div>
       <div class="flex-between" style="margin-bottom:13px;">
         <div style="font-size:.78rem;color:var(--text-dim);" id="history-count">共 0 筆紀錄</div>
-        <button class="btn btn-danger" style="padding:5px 12px;font-size:.6rem;" onclick="clearHistory()">清除全部歷史</button>
+        <button class="btn btn-danger" id="history-clear-btn" style="padding:5px 12px;font-size:.6rem;" onclick="clearHistory()">清除全部歷史</button>
       </div>
       <div id="history-list"><div class="empty"><div class="empty-icon">📋</div>尚無抽籤紀錄</div></div>
     </div>
@@ -1149,6 +1149,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
   <div class="self-tabs">
     <button class="self-tab active" onclick="switchSelfTab('apply')">📝 排假申請</button>
     <button class="self-tab" id="self-tab-schedule" onclick="switchSelfTab('schedule')" style="display:none;">📊 假表</button>
+    <button class="self-tab" id="self-tab-history" onclick="switchSelfTab('history')">📋 歷史紀錄</button>
   </div>
 
   <!-- 排假申請分頁 -->
@@ -1246,6 +1247,18 @@ tr:hover td{background:rgba(255,255,255,.018);}
       </div>
     </div>
   </div><!-- /self-panel-schedule -->
+
+  <!-- 歷史紀錄分頁 -->
+  <div id="self-panel-history" class="self-panel">
+    <div class="main" style="max-width:700px;">
+      <div class="section-title">歷史紀錄</div>
+      <div class="flex-between" style="margin-bottom:13px;">
+        <div style="font-size:.78rem;color:var(--text-dim);" id="self-history-count">共 0 筆紀錄</div>
+        <button class="btn btn-danger" id="self-btn-clear-history" style="padding:5px 12px;font-size:.6rem;display:none;" onclick="clearHistory()">清除全部歷史</button>
+      </div>
+      <div id="self-history-list"><div class="empty"><div class="empty-icon">📋</div>尚無抽籤紀錄</div></div>
+    </div>
+  </div><!-- /self-panel-history -->
 
 </div><!-- /self-view -->
 
@@ -1494,6 +1507,7 @@ function submitSetup(){
 // ══ LOGIN ══
 
 let _currentRole = null; // 'superadmin' | 'admin' | 'employee'
+let _currentAdminRole = null; // 'superadmin' | '負責人' | '主管' | '櫃檶' | null
 let _currentEmpId = null;
 let _currentAdminUser = null;
 
@@ -1534,7 +1548,7 @@ function onLoginEmpChange(){
 
 function _enterSelfView(eid){
   const emp=data.employees.find(e=>e.id===eid);
-  _currentRole='employee';_currentEmpId=eid;_currentAdminUser=null;
+  _currentRole='employee';_currentEmpId=eid;_currentAdminUser=null;_currentAdminRole=null;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-header').style.display='flex';
   document.getElementById('header-user-info').textContent=`👤 ${emp.name}（${emp.dept}）`;
@@ -1640,6 +1654,7 @@ function loginAsAdmin(){
   const adminRole=role==='superadmin'?'superadmin':(foundAdmin?.role||'主管');
   const isCounter=adminRole==='櫃檯';
   _currentRole=role; _currentAdminUser=user; _currentEmpId=null;
+  _currentAdminRole=adminRole;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-header').style.display='flex';
   const roleLabel=role==='superadmin'?'超級管理員':adminRole==='負責人'?'負責人':isCounter?'櫃檯':'主管';
@@ -1675,7 +1690,7 @@ function loginAsAdmin(){
 }
 
 function logout(){
-  _currentRole=null;_currentEmpId=null;_currentAdminUser=null;_isSimulating=false;
+  _currentRole=null;_currentAdminRole=null;_currentEmpId=null;_currentAdminUser=null;_isSimulating=false;
   document.getElementById('local-mode-banner').style.display='none';
   document.getElementById('simulate-banner').style.display='none';
   document.getElementById('btn-change-pin').style.display='none';
@@ -4111,6 +4126,10 @@ function selfCancelLeave(id,eid){
 function renderHistory(){
   const el=document.getElementById('history-list');
   document.getElementById('history-count').textContent=`共 ${data.history.length} 筆紀錄`;
+  // 只有超級管理員、負責人、主管可清除
+  const canClear=_currentRole==='superadmin'||_currentAdminRole==='superadmin'||_currentAdminRole==='負責人'||_currentAdminRole==='主管';
+  const clearBtn=document.getElementById('history-clear-btn');
+  if(clearBtn) clearBtn.style.display=canClear?'inline-block':'none';
   if(!data.history.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>尚無抽籤紀錄</div>';return;}
   el.innerHTML=data.history.map(r=>{
     if(r.type==='reset') return `<div class="history-item" style="opacity:.6;">
@@ -4129,7 +4148,35 @@ function renderHistory(){
 }
 function clearHistory(){
   if(!data.history.length)return toast('無歷史紀錄',true);
-  showModal('清除歷史紀錄','確定要清除所有抽籤紀錄？',()=>{data.history=[];save();renderHistory();toast('✓ 已清除');});
+  showModal('清除歷史紀錄','確定要清除所有抽籤紀錄？',()=>{
+    data.history=[];save();renderHistory();renderSelfHistory();toast('✓ 已清除');
+  });
+}
+function renderSelfHistory(){
+  const el=document.getElementById('self-history-list');
+  const countEl=document.getElementById('self-history-count');
+  if(!el) return;
+  if(countEl) countEl.textContent=`共 ${data.history.length} 筆紀錄`;
+  // 清除按鈕：超級管理員、負責人、主管可見（含模擬模式）
+  const canClear=_currentRole==='superadmin'||_currentAdminRole==='superadmin'||_currentAdminRole==='負責人'||_currentAdminRole==='主管';
+  const clearBtn=document.getElementById('self-btn-clear-history');
+  if(clearBtn) clearBtn.style.display=canClear?'inline-block':'none';
+  if(!data.history.length){el.innerHTML='<div class="empty"><div class="empty-icon">📋</div>尚無抽籤紀錄</div>';return;}
+  el.innerHTML=data.history.map(r=>{
+    if(r.type==='reset') return `<div class="history-item" style="opacity:.6;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-weight:600;font-size:.91rem;">🔄 ${r.periodName}</div><span class="badge b-gray">${r.drawnAt}</span></div>
+      <div style="font-size:.76rem;color:var(--text-dim);">📅 ${r.date}　🏷️ ${r.shift||'—'}　${r.note||'已重置'}</div>
+    </div>`;
+    return `<div class="history-item" onclick="this.classList.toggle('open')">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;"><div style="font-weight:600;font-size:.91rem;">${r.periodName}</div><span class="badge b-orange">${r.drawnAt}</span></div>
+    <div style="font-size:.76rem;color:var(--text-dim);">📅 ${r.date}　🏷️ ${r.shift||'—'}　👥 抽籤 ${r.total} 人，錄取 ${r.winners.length}/${r.limit} 人</div>
+    <div class="history-detail">
+      <div style="margin-bottom:7px;"><div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:5px;">錄取名單</div>
+        ${r.winners.map((w,i)=>`<span class="badge b-green" style="margin:2px;">#${i+1} ${w.name}（${w.dept}）</span>`).join('')}</div>
+      ${r.losers.length?`<div><div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:5px;">未錄取</div>${r.losers.map(w=>`<span class="badge b-gray" style="margin:2px;">${w.name}（${w.dept}）</span>`).join('')}</div>`:''}
+    </div>
+  </div>`;
+  }).join('');
 }
 
 // ══ SCHEDULE ══
@@ -6613,6 +6660,7 @@ function switchSelfTab(name){
   const tabEl=document.querySelector(`.self-tab[onclick="switchSelfTab('${name}')"]`);
   if(tabEl) tabEl.classList.add('active');
   if(name==='schedule'){refreshSelfSchFilterShift();renderSelfSchedule();}
+  if(name==='history'){renderSelfHistory();}
 }
 
 // ══ 管理員發布假表 ══
