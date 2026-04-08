@@ -4647,16 +4647,11 @@ function exportScheduleExcel(){
     const counterApps=data.counterApplications||[];
     const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
     const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
-    const counterAdminIds=[...new Set(counterInPeriod.map(a=>a.adminId))];
-    counterAdminIds.sort((a,b)=>{
-      const ra=csOrder.indexOf(a)<0?9999:csOrder.indexOf(a);
-      const rb=csOrder.indexOf(b)<0?9999:csOrder.indexOf(b);
-      return ra-rb;
-    });
-    const counterAdmins=counterAdminIds.map(aid=>{
-      const app=counterInPeriod.find(a=>a.adminId===aid);
-      const staffInfo=(data.counterStaff||[]).find(s=>s.adminId===aid);
-      return {id:aid,name:staffInfo?.nickname||app.adminName,shift:staffInfo?.shift||'',store:staffInfo?.store||''};
+    // 以 counterStaff 為基礎顯示所有櫃台人員（不只有請假的），依 filterStore 篩選
+    const allCounterStaff=(data.counterStaff||[]);
+    const counterAdmins=allCounterStaff.map(s=>{
+      const admin=(data.admins||[]).find(a=>a.id===s.adminId);
+      return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,shift:s.shift||'',store:s.store||''};
     });
     const counterDateMap={};
     counterInPeriod.forEach(a=>{
@@ -4681,7 +4676,7 @@ function exportScheduleExcel(){
     // 清潔人員（依店別篩選）
     const _clSp=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
     const _clSh=s=>s==='早班'?'早':s==='晚班'?'晚':'';
-    const allCleaners=(data.cleanerStaff||[]).filter(s=>!filterStore||!s.store||s.store===filterStore);
+    const allCleaners=(data.cleanerStaff||[]);
     const cleanerScheds=(data.cleanerSchedules||[]).filter(x=>x.periodId===pid);
     const cleanerSchedMap={};
     cleanerScheds.forEach(x=>{if(!cleanerSchedMap[x.name])cleanerSchedMap[x.name]={};cleanerSchedMap[x.name][x.date]=x;});
@@ -5893,7 +5888,7 @@ function renderSchedule(){
   const _clSp2=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
   const _clSh2=s=>s==='早班'?'早':s==='晚班'?'晚':'';
   const _cleanerAll=_showCleaner?(data.cleanerStaff||[]):[];
-  const _cleanerList=filterStore?_cleanerAll.filter(s=>!s.store||s.store===filterStore):_cleanerAll;
+  const _cleanerList=_cleanerAll; // 清潔人員不分店別顯示
   const _cleanerSchedMap={};
   if(_showCleaner)(data.cleanerSchedules||[]).filter(x=>x.periodId===pid).forEach(x=>{
     if(!_cleanerSchedMap[x.name])_cleanerSchedMap[x.name]={};
