@@ -1924,7 +1924,7 @@ function addCleanerSchedule(){
   if(!data.cleanerSchedules) data.cleanerSchedules=[];
   let updated=0;
   dates.forEach(d=>{
-    const ex=data.cleanerSchedules.find(x=>x.name===name&&x.date===d);
+    const ex=data.cleanerSchedules.find(x=>x.name===name&&x.date===d&&x.periodId===pid);
     if(ex){ex.store=store;ex.shift=shift;ex.customStart=customStart;ex.customEnd=customEnd;ex.periodId=pid;updated++;}
     else{data.cleanerSchedules.push({id:`cl_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,name,date:d,store,shift,customStart,customEnd,periodId:pid});updated++;}
   });
