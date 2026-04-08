@@ -2606,7 +2606,7 @@ function _addAppCore(periodId,empId,dates){
   if(blocked.length)return{ok:false,msg:`${emp.dept}以下日期不開放：${blocked.map(fd).join('、')}`};
   // 假別衝突檢查（排假/請假/長假不可重疊，需先取消原有假別）
   const newOnlyDates=dates.filter(d=>{const ex=data.applications.find(a=>a.periodId===periodId&&a.empId===empId);return !ex||!ex.dates.includes(d);});
-  const leaveConflicts=getLeaveConflicts(empId,newOnlyDates);
+  const leaveConflicts=getLeaveConflicts(empId,newOnlyDates,periodId);
   if(leaveConflicts.length){
     const items=leaveConflicts.map(c=>`${fd(c.date)}（${c.type}）`).join('、');
     return{ok:false,msg:`以下日期已有其他假別，請先取消後再申請排假：${items}`};
@@ -6970,7 +6970,8 @@ function isOverDailyLimit(empId,date,includePending=false){
 }
 // 檢查某員工某些日期是否已存在任一假別，回傳衝突清單
 // 回傳：[{date, type:'排假'|'請假'|'長假'}]
-function getLeaveConflicts(empId, dates){
+function getLeaveConflicts(empId, dates, periodId){
+  // periodId: 若傳入，排假衝突只在該假期內檢查（不同假期的排假不互相干擾）
   const conflicts=[];
   const emp=data.employees.find(e=>e.id===empId);
   if(!emp) return conflicts;
@@ -6983,14 +6984,14 @@ function getLeaveConflicts(empId, dates){
     if((data.extraLeaves||[]).some(l=>l.empId===empId&&l.date===date&&l.status!=='rejected')){
       conflicts.push({date,type:'請假'});return;
     }
-    // 排假（含 loser）
-    const period=data.periods.find(p=>p.start<=date&&date<=p.end);
-    if(period){
+    // 排假（含 loser）：只在指定假期內檢查，若未指定則找第一個涵蓋該日的假期
+    const period=periodId
+      ? data.periods.find(p=>p.id===periodId)
+      : data.periods.find(p=>p.start<=date&&date<=p.end);
+    if(period&&period.start<=date&&date<=period.end){
       const st=(buildStatusMap(period)[empId]||{})[date];
       if(st&&st!=='extra'&&st!=='el-pending'){conflicts.push({date,type:'排假'});return;}
-    }
-    // loser 未被 statusMap 抓到時，補查 history
-    if(period){
+      // loser 未被 statusMap 抓到時，補查 history
       const empGender=emp.gender||'male';
       const hRec=data.history.find(h=>
         ((h.periodId===period.id)||(h.periodName===period.name&&h.periodStart===period.start))
