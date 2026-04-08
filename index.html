@@ -4773,14 +4773,12 @@ function exportAttendanceExcel(){
   const statusMap=buildStatusMap(period);
   const ON_LEAVE=['lottery','direct','extra'];
 
-  // ── 櫃台人員（本假期有排假紀錄者，優先顯示）──
+  // ── 櫃台人員（全部 counterStaff，不限有無排假紀錄）──
   const counterApps=data.counterApplications||[];
   const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
-  const counterAdminIds=[...new Set(counterInPeriod.map(a=>a.adminId))];
-  const counterAdmins=counterAdminIds.map(aid=>{
-    const app=counterInPeriod.find(a=>a.adminId===aid);
-    const staffInfo=(data.counterStaff||[]).find(s=>s.adminId===aid);
-    return {id:aid,name:app.adminName,role:app.adminRole||'主管',shift:staffInfo?.shift||'早'};
+  const counterAdmins=(data.counterStaff||[]).map(s=>{
+    const admin=(data.admins||[]).find(a=>a.id===s.adminId);
+    return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,role:admin?.role||'主管',shift:s.shift||'早',store:s.store||''};
   });
   const counterDateMap={};
   counterInPeriod.forEach(a=>{
