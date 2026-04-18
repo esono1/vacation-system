@@ -4883,10 +4883,11 @@ function exportAttendanceExcel(){
   const statusMap=buildStatusMap(period);
   const ON_LEAVE=['lottery','direct','extra','long-start','long-end','long-mid'];
 
-  // ── 櫃台人員（全部 counterStaff，不限有無排假紀錄）──
+  // ── 櫃台人員（依假期或 filterStore 店別篩選）──
   const counterApps=data.counterApplications||[];
   const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
-  const counterAdmins=(data.counterStaff||[]).map(s=>{
+  const _attCtrStore=filterStore||period.storeRestrict||'';
+  const counterAdmins=(data.counterStaff||[]).filter(s=>!_attCtrStore||!s.store||s.store===_attCtrStore).map(s=>{
     const admin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,role:admin?.role||'主管',shift:s.shift||'早',store:s.store||''};
   });
