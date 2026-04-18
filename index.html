@@ -1847,7 +1847,7 @@ function renderDeptList(){
       const dt=(data.deptTimes||{})[d]||{};
       const defStart=dt.start||'';
       const defEnd=dt.end||'';
-      const dk=d.replace(/[^a-z0-9]/gi,'_');
+      const dk=String(i);
       return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
           <div style="display:flex;flex-direction:column;gap:1px;">
@@ -1860,7 +1860,7 @@ function renderDeptList(){
         </div>
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <span style="font-size:.72rem;color:var(--text-dim);white-space:nowrap;">預設上班時間：</span>
-          <input type="text" id="depttime_${dk}" value="${defStart&&defEnd?defStart.replace(':','')+'~'+defEnd.replace(':',''):''}" placeholder="HHMM~HHMM" maxlength="11" style="width:130px;padding:3px 8px;font-size:.76rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);">
+          <input type="text" id="depttime_${dk}" value="${defStart&&defEnd?defStart.replace(/:/g,'')+'~'+defEnd.replace(/:/g,''):''}" placeholder="HHMM~HHMM" maxlength="11" style="width:130px;padding:3px 8px;font-size:.76rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);">
           <button onclick="saveDeptTime('${d}')" class="btn btn-ghost" style="padding:3px 10px;font-size:.62rem;">儲存</button>
           ${defStart&&defEnd?`<span style="font-size:.66rem;color:var(--accent);margin-left:4px;">${defStart}–${defEnd}</span>`:''}
         </div>
@@ -1875,14 +1875,17 @@ function moveDept(idx, dir){
   save();renderDeptList();renderDeptOptions();renderShiftDefaults();
 }
 function saveDeptTime(dept){
-  const dk=dept.replace(/[^a-z0-9]/gi,'_');
-  const tv=(document.getElementById('depttime_'+dk)?.value||'').trim();
+  const dk=String(data.departments.indexOf(dept));
+  const inputEl=document.getElementById('depttime_'+dk);
+  const tv=(inputEl?.value||'').trim();
+  console.log('[saveDeptTime] dept=',dept,'dk=',dk,'tv=',tv,'el=',inputEl);
   const tp=tv.split(/[~～]/);
   const start=parseHHMM(tp[0]||'');
   const end=parseHHMM(tp[1]||'');
+  console.log('[saveDeptTime] start=',start,'end=',end);
   if(!data.deptTimes)data.deptTimes={};
   data.deptTimes[dept]={start,end};
-  save();renderDeptList();toast(`✓ ${dept} 預設時間已儲存`);
+  save();renderDeptList();toast(`✓ ${dept} 預設時間已儲存（${start}–${end}）`);
 }
 function parseHHMM(v){
   if(!v)return '';
