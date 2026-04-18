@@ -4783,7 +4783,7 @@ function exportScheduleExcel(){
     // 清潔人員（依店別篩選）
     const _clSp=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
     const _clSh=s=>s==='早班'?'早':s==='晚班'?'晚':'';
-    const allCleaners=(data.cleanerStaff||[]);
+    const allCleaners=(data.cleanerStaff||[]).filter(s=>!period.storeRestrict||!s.store||s.store===period.storeRestrict);
     const cleanerScheds=(data.cleanerSchedules||[]).filter(x=>x.periodId===pid);
     const cleanerSchedMap={};
     cleanerScheds.forEach(x=>{if(!cleanerSchedMap[x.name])cleanerSchedMap[x.name]={};cleanerSchedMap[x.name][x.date]=x;});
@@ -6011,7 +6011,9 @@ function renderSchedule(){
   const _clSp2=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
   const _clSh2=s=>s==='早班'?'早':s==='晚班'?'晚':'';
   const _cleanerAll=_showCleaner?(data.cleanerStaff||[]):[];
-  const _cleanerList=_cleanerAll; // 清潔人員不分店別顯示
+  // 清潔人員依假期店別限制篩選
+  const _periodStore=period.storeRestrict||'';
+  const _cleanerList=_periodStore?_cleanerAll.filter(s=>!s.store||s.store===_periodStore):_cleanerAll;
   const _cleanerSchedMap={};
   if(_showCleaner)(data.cleanerSchedules||[]).filter(x=>x.periodId===pid).forEach(x=>{
     if(!_cleanerSchedMap[x.name])_cleanerSchedMap[x.name]={};
