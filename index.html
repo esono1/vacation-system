@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>假期抽籤系統</title>
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root {
   --bg:#0e0e0e; --surface:#161616; --surface2:#1e1e1e; --surface3:#242424;
@@ -17,7 +17,7 @@ body.light-mode {
   --text:#1a1814; --text-dim:#666; --red:#c0392b; --green:#27ae60;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{background:var(--bg);color:var(--text);font-family:'Noto Serif TC',serif;min-height:100vh;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;}
 
 /* ── Header ── */
 .header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 28px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
@@ -25,7 +25,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif TC',serif;mi
 .header-title{font-size:1rem;font-weight:700;letter-spacing:.06em;}
 .header-sub{font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);letter-spacing:.1em;}
 .header-mode{margin-left:auto;display:flex;gap:6px;}
-.mode-btn{padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;font-family:'Space Mono',monospace;font-size:.64rem;letter-spacing:.06em;background:transparent;color:var(--text-dim);transition:all .2s;}
+.mode-btn{padding:6px 14px;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-size:.64rem;letter-spacing:.06em;background:transparent;color:var(--text-dim);transition:all .2s;}
 .mode-btn:hover{border-color:var(--text-dim);color:var(--text);}
 .mode-btn.active{background:var(--accent);border-color:var(--accent);color:#111;font-weight:700;}
 .apptab.active{color:var(--accent)!important;border-bottom:2px solid var(--accent)!important;}
@@ -33,7 +33,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif TC',serif;mi
 
 /* ── Tabs ── */
 .tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 28px;overflow-x:auto;}
-.tab{padding:11px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.tab{padding:11px 18px;font-family:'Noto Sans TC',sans-serif;font-size:.72rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
 .tab:hover{color:var(--text);}
 .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 
@@ -42,7 +42,7 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif TC',serif;mi
 .panel{display:none;}.panel.active{display:block;}
 
 /* ── Titles ── */
-.section-title{font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
+.section-title{font-family:'Noto Sans TC',sans-serif;font-size:.7rem;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:10px;}
 .section-title::after{content:'';flex:1;height:1px;background:var(--border);}
 
 /* ── Cards ── */
@@ -55,15 +55,15 @@ body{background:var(--bg);color:var(--text);font-family:'Noto Serif TC',serif;mi
 /* ── Inputs ── */
 input[type=text],input[type=number],input[type=date],select{
   background:var(--surface2);border:1px solid var(--border);color:var(--text);
-  padding:8px 12px;border-radius:var(--radius);font-family:'Noto Serif TC',serif;
-  font-size:.84rem;width:100%;outline:none;transition:border .2s;
+  padding:8px 12px;border-radius:var(--radius);font-family:'Noto Sans TC',sans-serif;
+  font-size:.88rem;width:100%;outline:none;transition:border .2s;
 }
 input:focus,select:focus{border-color:var(--accent);}
-label{display:block;font-family:'Space Mono',monospace;font-size:.64rem;letter-spacing:.1em;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;}
+label{display:block;font-family:'Noto Sans TC',sans-serif;font-size:.7rem;letter-spacing:.1em;color:var(--text-dim);margin-bottom:4px;text-transform:uppercase;}
 .field{margin-bottom:13px;}
 
 /* ── Buttons ── */
-.btn{padding:8px 18px;border-radius:var(--radius);border:none;cursor:pointer;font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.08em;transition:all .2s;}
+.btn{padding:8px 18px;border-radius:var(--radius);border:none;cursor:pointer;font-family:'Noto Sans TC',sans-serif;font-size:.74rem;letter-spacing:.08em;transition:all .2s;}
 .btn-primary{background:var(--accent);color:#111;font-weight:700;}
 .btn-primary:hover{background:#f0d660;}
 .btn-primary:disabled{opacity:.38;cursor:not-allowed;}
@@ -74,14 +74,14 @@ label{display:block;font-family:'Space Mono',monospace;font-size:.64rem;letter-s
 .btn-row{display:flex;gap:7px;flex-wrap:wrap;}
 
 /* ── Table ── */
-table{width:100%;border-collapse:collapse;font-size:.82rem;}
-th{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--border);padding:8px 11px;text-align:left;}
+table{width:100%;border-collapse:collapse;font-size:.86rem;}
+th{font-family:'Noto Sans TC',sans-serif;font-size:.68rem;letter-spacing:.1em;color:var(--text-dim);text-transform:uppercase;border-bottom:1px solid var(--border);padding:8px 11px;text-align:left;}
 td{padding:10px 11px;border-bottom:1px solid var(--border);vertical-align:middle;}
 tr:last-child td{border-bottom:none;}
 tr:hover td{background:rgba(255,255,255,.018);}
 
 /* ── Badges ── */
-.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.04em;}
+.badge{display:inline-block;padding:2px 8px;border-radius:99px;font-family:'Noto Sans TC',sans-serif;font-size:.64rem;letter-spacing:.04em;}
 .b-yellow{background:rgba(232,200,74,.15);color:var(--accent);}
 .b-green{background:rgba(74,232,122,.15);color:var(--green);}
 .b-red{background:rgba(232,74,74,.15);color:var(--red);}
@@ -207,7 +207,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
 @media(max-width:700px){.main{padding:13px;}.grid-2,.grid-3{grid-template-columns:1fr;}.tabs{padding:0 10px;}.header{padding:14px 16px;}.mode-btn span{display:none;}}
 /* 員工端分頁 */
 .self-tabs{display:flex;border-bottom:1px solid var(--border);background:var(--surface);padding:0 16px;margin-bottom:0;}
-.self-tab{padding:10px 16px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.08em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
+.self-tab{padding:10px 16px;font-family:'Noto Sans TC',sans-serif;font-size:.72rem;letter-spacing:.08em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;}
 .self-tab:hover{color:var(--text);}
 .self-tab.active{color:var(--accent);border-bottom-color:var(--accent);}
 .self-panel{display:none;}.self-panel.active{display:block;}
@@ -549,13 +549,24 @@ tr:hover td{background:rgba(255,255,255,.018);}
         <!-- 排假天數額度設定 -->
         <div class="card">
           <div class="section-title">排假天數額度設定</div>
-          <div class="field"><label>每人每月排假天數上限</label>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <input type="number" id="monthly-quota" min="1" value="8" style="width:80px;">
-              <button class="btn btn-primary" style="white-space:nowrap;" onclick="saveQuota()">儲存設定</button>
+          <div class="grid-2">
+            <div class="field"><label>一般人員每月排假天數上限</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="number" id="monthly-quota" min="1" value="8" style="width:80px;">
+                <span style="font-size:.78rem;color:var(--text-dim);">目前：<span id="quota-display" style="color:var(--accent);font-weight:700;">8</span> 天</span>
+              </div>
+            </div>
+            <div class="field"><label>兼職人員每月上班天數下限</label>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <input type="number" id="part-time-quota" min="1" value="4" style="width:80px;">
+                <span style="font-size:.78rem;color:var(--text-dim);">目前：<span id="part-time-quota-display" style="color:var(--accent);font-weight:700;">4</span> 天（當月天數 − 下限 = 可排假天數）</span>
+              </div>
             </div>
           </div>
-          <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);">目前設定：每人每月排假上限 <span id="quota-display" style="color:var(--accent);font-weight:700;">8</span> 天（不含額外請假）</div>
+          <div style="margin-top:8px;display:flex;align-items:center;gap:10px;">
+            <button class="btn btn-primary" style="white-space:nowrap;" onclick="saveQuota()">儲存設定</button>
+            <span style="font-size:.72rem;color:var(--text-dim);">兼職下限適用於制度為「兼」的人員，可排假天數依當月天數自動計算</span>
+          </div>
         </div>
         <!-- 代排假 -->
         <div class="card">
@@ -634,6 +645,12 @@ tr:hover td{background:rgba(255,255,255,.018);}
               </div>
               <div class="field"><label>請假原因（選填）</label>
                 <input type="text" id="proxy-el-reason" placeholder="例：家庭事由">
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0;font-size:.82rem;">
+                  <input type="checkbox" id="proxy-el-birthday" style="width:auto;padding:0;accent-color:var(--accent);">
+                  生日假（不受假別衝突限制，假表顯示「生」）
+                </label>
               </div>
             </div>
             <div>
@@ -1305,6 +1322,7 @@ const DEFAULT_DATA = {
   makeupLeaves:[],
   pendingPromotions:[],
   monthlyQuota:8,
+  partTimeQuota:4,
   history:[],
   admins:[], // [{id, username, password}]
   longLeaves:[], // [{id, empId, empName, shift, startDate, endDate, reason, countAsSlot, customQuota, appliedAt}]
@@ -1382,6 +1400,7 @@ function migrateData(d){
   if(!Array.isArray(d.pendingPromotions)) d.pendingPromotions=[];
   if(!Array.isArray(d.history)) d.history=[];
   if(!d.monthlyQuota) d.monthlyQuota=8;
+  if(!d.partTimeQuota) d.partTimeQuota=4;
   if(!Array.isArray(d.admins)) d.admins=[];
   if(!d.dailyLimits) d.dailyLimits={};
   if(!d.publishedSchedules) d.publishedSchedules=[];
@@ -2586,7 +2605,7 @@ function updatePeriod(){
 }
 
 // ══ APPLICATIONS (shared logic) ══
-function _addAppCore(periodId,empId,dates){
+function _addAppCore(periodId,empId,dates,forceOverLimit=false){
   const p=data.periods.find(x=>x.id===periodId);
   const emp=data.employees.find(e=>e.id===empId);
   if(!p||!emp)return{ok:false,msg:'資料錯誤'};
@@ -2605,27 +2624,53 @@ function _addAppCore(periodId,empId,dates){
   }
   const blocked=dates.filter(d=>getLim(p,emp.dept,d)===0);
   if(blocked.length)return{ok:false,msg:`${emp.dept}以下日期不開放：${blocked.map(fd).join('、')}`};
-  // 假別衝突檢查（排假/請假/長假不可重疊，需先取消原有假別）
-  const newOnlyDates=dates.filter(d=>{const ex=data.applications.find(a=>a.periodId===periodId&&a.empId===empId);return !ex||!ex.dates.includes(d);});
-  const leaveConflicts=getLeaveConflicts(empId,newOnlyDates,periodId);
+  const existing_app=data.applications.find(a=>a.periodId===periodId&&a.empId===empId);
+  const newOnlyDates=dates.filter(d=>!existing_app||!existing_app.dates.includes(d));
+  // 假別衝突檢查（排假/請假/長假不可重疊；已抽籤日期不視為衝突）
+  const gender=emp.gender||'male';
+  const lotteryDoneSet=new Set(newOnlyDates.filter(d=>data.history.some(h=>
+    ((h.periodId===periodId)||(h.periodName===p.name&&h.periodStart===p.start))
+    &&h.shift===emp.dept&&h.date===d&&!h.type
+    &&(h.gender===gender||h.gender===undefined)
+  )));
+  const leaveConflicts=getLeaveConflicts(empId,newOnlyDates.filter(d=>!lotteryDoneSet.has(d)),periodId);
   if(leaveConflicts.length){
     const items=leaveConflicts.map(c=>`${fd(c.date)}（${c.type}）`).join('、');
     return{ok:false,msg:`以下日期已有其他假別，請先取消後再申請排假：${items}`};
   }
-  // 抽籤完畢且名額已滿檢查
-  const gender=emp.gender||'male';
-  const lotteryFull=dates.filter(d=>{
-    const hRec=data.history.find(h=>
-      ((h.periodId===periodId)||(h.periodName===p.name&&h.periodStart===p.start))
-      &&h.shift===emp.dept&&h.date===d&&!h.type
-      &&(h.gender===gender||h.gender===undefined)
-    );
-    if(!hRec) return false;
-    const alreadyWinner=hRec.winners.some(w=>w.name===emp.name&&w.dept===emp.dept);
-    if(alreadyWinner) return false; // 自己已中籤，不封鎖
-    return hRec.winners.length>=hRec.limit;
+  // 申請後超過可休人數上限的日期（含已抽籤與未抽籤）→ 警告確認
+  const overLimitDates=newOnlyDates.filter(d=>{
+    const lim=getLim(p,emp.dept,d,gender);
+    if(lim<=0) return false;
+    if(lotteryDoneSet.has(d)){
+      // 已抽籤：檢查 history winners 是否已達上限
+      const hRec=data.history.find(h=>
+        ((h.periodId===periodId)||(h.periodName===p.name&&h.periodStart===p.start))
+        &&h.shift===emp.dept&&h.date===d&&!h.type
+        &&(h.gender===gender||h.gender===undefined)
+      );
+      if(!hRec) return false;
+      const alreadyWinner=hRec.winners.some(w=>w.name===emp.name&&w.dept===emp.dept);
+      if(alreadyWinner) return false;
+      return hRec.winners.length>=hRec.limit;
+    } else {
+      // 未抽籤：加入後申請人數是否超限
+      const allApps=getApps(periodId,emp.dept,d);
+      const genderApps=allApps.filter(a=>{const e=data.employees.find(x=>x.id===a.empId);return (e?e.gender||'male':'male')===gender;});
+      const alreadyApplied=genderApps.some(a=>a.empId===empId);
+      const currentCount=genderApps.length+(alreadyApplied?0:1);
+      return currentCount>lim;
+    }
   });
-  if(lotteryFull.length)return{ok:false,msg:`以下日期已完成抽籤且名額已滿，無法再申請：${lotteryFull.map(fd).join('、')}`};
+  if(overLimitDates.length&&!forceOverLimit){
+    const hasLotteryDone=overLimitDates.some(d=>lotteryDoneSet.has(d));
+    const msg=hasLotteryDone
+      ?`以下日期超過可休人數上限（含已抽籤日期），確定要申請？
+${overLimitDates.map(fd).join('、')}`
+      :`以下日期申請後將超過可休人數上限，確定要申請？
+${overLimitDates.map(fd).join('、')}`;
+    return{ok:'warn',msg,warnDates:overLimitDates,dates};
+  }
   // 計算此員工在此假期已申請天數（不含未中籤日期）
   const existing=data.applications.find(a=>a.periodId===periodId&&a.empId===empId);
   const _smAll=buildStatusMap(p);
@@ -2741,10 +2786,10 @@ function renderProxyElDateGrid(){
       const alreadyWinner=hRec?hRec.winners.some(w=>w.name===emp.name&&w.dept===emp.dept):false;
       const lotteryFull=!alreadyWinner&&hRec&&hRec.winners.length>=hRec.limit;
       // 請假狀態
-      const elRec=(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected');
+      const elRec=(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'&&(l.periodId?l.periodId===pid:true));
       const elStatus=elRec?elRec.status:null;
 
-      const disabled=!eid||closed||onLL||(elStatus==='approved')||(lotteryFull&&!hasSched);
+      const disabled=!eid||closed||onLL||(elStatus==='approved'); // lotteryFull no longer blocks
       let cellStyle='',title='',dotHtml='';
 
       if(!eid){
@@ -2763,7 +2808,7 @@ function renderProxyElDateGrid(){
         title='請假待審';
         dotHtml='<div style="font-size:.46rem;line-height:1;margin-top:1px;text-align:center;">審</div>';
       } else if(lotteryFull&&!hasSched){
-        cellStyle='color:var(--text-dim);opacity:.38;cursor:default;';title='抽籤已滿';
+        cellStyle='color:var(--accent2);font-weight:700;cursor:pointer;border-radius:3px;background:rgba(232,122,74,.1);';title='超過可休人數上限（可申請但需確認）';
         dotHtml='<div style="font-size:.46rem;line-height:1;margin-top:1px;text-align:center;">滿</div>';
       } else if(hasSched){
         const stBg={lottery:'rgba(74,232,122,.2)',direct:'rgba(122,180,240,.2)','needs-lottery':'rgba(232,122,74,.15)',loser:'',pending:'rgba(232,200,74,.12)'};
@@ -2899,26 +2944,33 @@ function onProxyElEmpChange(){
 function addProxyExtraLeave(){
   const eid=parseInt(document.getElementById('proxy-el-emp').value);
   const reason=document.getElementById('proxy-el-reason').value.trim();
+  const isBirthday=document.getElementById('proxy-el-birthday')?.checked||false;
   if(!eid)return toast('請選擇員工',true);
   if(!_proxyElSelectedDates.size)return toast('請點選請假日期',true);
   const emp=data.employees.find(e=>e.id===eid);
   if(!emp)return;
   if(!data.extraLeaves)data.extraLeaves=[];
+  const _proxyPeriodId=parseInt(document.getElementById('proxy-el-period').value)||null;
   const dates=[..._proxyElSelectedDates].sort();
-  // 假別衝突檢查
-  const newDates=dates.filter(d=>!(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'));
-  const conflicts=getLeaveConflicts(eid,newDates);
-  if(conflicts.length){
-    const items=conflicts.map(c=>`${fd(c.date)}（${c.type}）`).join('、');
-    return toast(`以下日期已有其他假別，請先取消後再申請請假：${items}`,true);
+  // 假別衝突檢查（生日假跳過）
+  if(!isBirthday){
+    const newDates=dates.filter(d=>!(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'&&!l.isBirthday&&(l.periodId?l.periodId===_proxyPeriodId:true)));
+    const conflicts=getLeaveConflicts(eid,newDates);
+    if(conflicts.length){
+      const items=conflicts.map(c=>`${fd(c.date)}（${c.type}）`).join('、');
+      return toast(`以下日期已有其他假別，請先取消後再申請請假：${items}`,true);
+    }
   }
   let added=0,skipped=0;
   dates.forEach(date=>{
-    if((data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===date&&l.status!=='rejected')){skipped++;return;}
+    if((data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===date&&l.status!=='rejected'&&!l.isBirthday)){skipped++;return;}
+    const _proxyPid=_proxyPeriodId;
     data.extraLeaves.push({
       id:`${Date.now()}_${Math.floor(Math.random()*1000000)}`,
       empId:eid,empName:emp.name,shift:emp.dept,
-      date,reason:reason||'管理員代為申請',
+      date,reason:reason||(isBirthday?'生日假':'管理員代為申請'),
+      isBirthday:isBirthday||false,
+      periodId:_proxyPid,
       status:'approved',
       appliedAt:new Date().toLocaleString('zh-TW'),
       reviewedAt:new Date().toLocaleString('zh-TW')
@@ -2929,6 +2981,7 @@ function addProxyExtraLeave(){
   save();
   _proxyElSelectedDates=new Set();
   document.getElementById('proxy-el-reason').value='';
+  const bdCb=document.getElementById('proxy-el-birthday');if(bdCb)bdCb.checked=false;
   onProxyElEmpChange();
   refreshElSelects();renderExtraLeave();renderAppCancelDates();
   if(document.getElementById('panel-schedule').classList.contains('active'))renderSchedule();
@@ -2987,10 +3040,10 @@ function renderAppDateGrid(){
       const alreadyWinner=hRec?hRec.winners.some(w=>w.name===emp.name&&w.dept===emp.dept):false;
       const lotteryFull=!alreadyWinner&&hRec&&hRec.winners.length>=hRec.limit;
       // 額外請假狀態
-      const elRec=eid?(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'):null;
+      const elRec=eid?(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'&&(l.periodId?l.periodId===pid:true)):null;
       const elStatus=elRec?elRec.status:null; // 'approved'|'pending'|null
 
-      let disabled=!eid||closed||onLL||(lotteryFull&&!(alreadyApplied&&st==='loser'));
+      let disabled=!eid||closed||onLL; // lotteryFull no longer blocks
       let cellStyle='',title='',dotHtml='';
 
       if(!eid){
@@ -3001,7 +3054,7 @@ function renderAppDateGrid(){
         cellStyle='color:#c084f0;opacity:.6;cursor:default;background:rgba(192,132,240,.1);border-radius:3px;';title='長假中';
         dotHtml='<div style="font-size:.46rem;line-height:1;margin-top:1px;text-align:center;">長</div>';
       } else if(lotteryFull&&!(alreadyApplied&&st==='loser')){
-        cellStyle='color:var(--text-dim);opacity:.38;cursor:default;';title='抽籤已滿';
+        cellStyle='color:var(--accent2);font-weight:700;cursor:pointer;border-radius:3px;background:rgba(232,122,74,.1);';title='超過可休人數上限（可申請但需確認）';
         dotHtml='<div style="font-size:.46rem;line-height:1;margin-top:1px;text-align:center;">滿</div>';
       } else if(alreadyApplied){
         const stBg={lottery:'rgba(74,232,122,.25)',direct:'rgba(122,180,240,.25)','needs-lottery':'rgba(232,122,74,.2)',loser:'',pending:'rgba(232,200,74,.18)'};
@@ -3141,11 +3194,25 @@ function renderAppCancelDates(){
     }
     const stLabel=ST_LABEL[st]||'';
     const stColor=ST_COLOR[st]||'var(--text-dim)';
-    return `<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Serif TC',serif;color:${isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
+    return `<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Sans TC',sans-serif;color:${isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
       <input type="checkbox" id="appcancel_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--red);">
       ${fd(d)}<span style="font-size:.68rem;color:${stColor};">${stLabel}</span>
     </label>`;
   }).join('');
+}
+// 重置指定日期的抽籤結果，讓所有人回到待抽籤狀態
+function resetLotteryForDates(periodId, empDept, empGender, warnDates){
+  const p=data.periods.find(x=>x.id===periodId);
+  if(!p)return;
+  warnDates.forEach(date=>{
+    // 移除該日該班別該性別的 history 記錄（讓 buildStatusMap 重新計算為 needs-lottery）
+    data.history=data.history.filter(h=>!(
+      ((h.periodId===periodId)||(h.periodName===p.name&&h.periodStart===p.start))
+      &&h.shift===empDept&&h.date===date&&!h.type
+      &&(h.gender===empGender||h.gender===undefined)
+    ));
+  });
+  save();
 }
 function addApplication(){
   const pid=parseInt(document.getElementById('app-period').value);
@@ -3156,6 +3223,24 @@ function addApplication(){
   const dates=[..._appSelectedDates].sort();
   const r=_addAppCore(pid,eid,dates);
   if(!r.ok)return toast(r.msg,true);
+  if(r.ok==='warn'){
+    showModal('超休確認',r.msg,()=>{
+      const _emp=data.employees.find(e=>e.id===eid);
+      // 只重置已抽籤且超限的日期
+      const _lDoneWarn=r.warnDates.filter(d=>data.history.some(h=>
+        ((h.periodId===pid)||(data.periods.find(pp=>pp.id===pid)&&h.periodName===data.periods.find(pp=>pp.id===pid).name&&h.periodStart===data.periods.find(pp=>pp.id===pid).start))
+        &&h.shift===_emp?.dept&&h.date===d&&!h.type&&(h.gender===(_emp?.gender||'male')||h.gender===undefined)
+      ));
+      if(_emp&&_lDoneWarn.length) resetLotteryForDates(pid,_emp.dept,_emp.gender||'male',_lDoneWarn);
+      const r2=_addAppCore(pid,eid,dates,true);
+      if(!r2.ok)return toast(r2.msg,true);
+      _appSelectedDates=new Set();
+      renderAppDateGrid();renderAppCancelDates();renderApplications();
+      const _p=data.periods.find(p=>p.id===pid);if(_p)buildAllPreview(_p);
+      toast(`✓ ${r2.name} 申請 ${r2.added} 天${_lDoneWarn.length?'，已抽籤超限日期重設為待抽籤':''}`);
+    });
+    return;
+  }
   _appSelectedDates=new Set();
   renderAppDateGrid();
   renderAppCancelDates();
@@ -3356,16 +3441,16 @@ function onSelfEmpChange(){
     );
     const alreadyWinnerSelf=hRecSelf?hRecSelf.winners.some(w=>w.name===emp.name&&w.dept===emp.dept):false;
     const lotteryFull=!alreadyWinnerSelf&&!!hRecSelf&&hRecSelf.winners.length>=hRecSelf.limit;
-    const disabledStyle=closed||onLL||lotteryFull?' closed':'';
+    const disabledStyle=closed||onLL?' closed':'';
     return `<div class="date-opt${disabledStyle}">
-      <input type="checkbox" id="sdate_${d}" value="${d}"${alreadyApplied?' checked':''}${onLL||lotteryFull?' disabled':''}>
+      <input type="checkbox" id="sdate_${d}" value="${d}"${alreadyApplied?' checked':''}${onLL?' disabled':''}>
       <label for="sdate_${d}">
         <span style="${isWk(d)?'color:var(--accent2)':onLL?'color:#c084f0':lotteryFull?'color:var(--text-dim)':''}">
           ${new Date(d+'T00:00:00').toLocaleDateString('zh-TW',{month:'numeric',day:'numeric'})}
         </span>
         <span class="date-d">(${WD[new Date(d+'T00:00:00').getDay()]})</span>
-        <span class="date-lim" style="color:${onLL?'#c084f0':closed?'var(--red)':lotteryFull?'var(--text-dim)':cnt>=lim&&lim>0?'var(--accent2)':'var(--text-dim)'}">
-          ${onLL?'長假中':closed?'不開放':lotteryFull?'抽籤已滿':`上限 ${lim} 人`}
+        <span class="date-lim" style="color:${onLL?'#c084f0':closed?'var(--red)':lotteryFull?'var(--accent2)':cnt>=lim&&lim>0?'var(--accent2)':'var(--text-dim)'}">
+          ${onLL?'長假中':closed?'不開放':lotteryFull?'⚠ 超過上限':`上限 ${lim} 人`}
         </span>
       </label>
     </div>`;
@@ -3425,6 +3510,23 @@ function selfSubmit(){
   if(!checked.length){save();renderMyApps(pid,eid);return toast('已更新申請（未選任何日期）',false);}
   const r=_addAppCore(pid,eid,checked);
   if(!r.ok)return toast(r.msg,true);
+  if(r.ok==='warn'){
+    showModal('超休確認',r.msg,()=>{
+      const _empS=data.employees.find(e=>e.id===eid);
+      const _lDoneWarnS=r.warnDates.filter(d=>data.history.some(h=>
+        ((h.periodId===pid)||(data.periods.find(pp=>pp.id===pid)&&h.periodName===data.periods.find(pp=>pp.id===pid).name&&h.periodStart===data.periods.find(pp=>pp.id===pid).start))
+        &&h.shift===_empS?.dept&&h.date===d&&!h.type&&(h.gender===(_empS?.gender||'male')||h.gender===undefined)
+      ));
+      if(_empS&&_lDoneWarnS.length) resetLotteryForDates(pid,_empS.dept,_empS.gender||'male',_lDoneWarnS);
+      const r2=_addAppCore(pid,eid,checked,true);
+      if(!r2.ok)return toast(r2.msg,true);
+      renderMyApps(pid,eid);
+      onSelfEmpChange();
+      const _pp=data.periods.find(x=>x.id===pid);if(_pp)buildAllPreview(_pp);
+      toast(`✓ 申請已送出${_lDoneWarnS.length?'，已抽籤超限日期重設為待抽籤':''}`);
+    });
+    return;
+  }
   renderMyApps(pid,eid);
   toast(`✓ 申請已送出！共 ${checked.length} 天`);
 }
@@ -3961,10 +4063,13 @@ function resetLottery(){
 // ══ EXTRA LEAVE ══
 function saveQuota(){
   const v=parseInt(document.getElementById('monthly-quota').value);
+  const vp=parseInt(document.getElementById('part-time-quota').value);
   if(isNaN(v)||v<1)return toast('請輸入有效天數',true);
-  data.monthlyQuota=v; save();
+  if(isNaN(vp)||vp<1)return toast('請輸入有效上班天數下限',true);
+  data.monthlyQuota=v; data.partTimeQuota=vp; save();
   document.getElementById('quota-display').textContent=v;
-  document.getElementById('self-quota-display').textContent=v;
+  const pd=document.getElementById('part-time-quota-display');if(pd)pd.textContent=vp;
+  const sd=document.getElementById('self-quota-display');if(sd)sd.textContent=v;
   toast('✓ 額度已更新');
 }
 
@@ -4016,7 +4121,8 @@ function renderExtraLeave(){
   if(!list.length){el.innerHTML='<div class="empty"><div class="empty-icon">🏖️</div>尚無請假申請</div>';return;}
   el.innerHTML=`<table><thead><tr><th>員工</th><th>班別</th><th>日期</th><th>原因</th><th>狀態</th><th>操作</th></tr></thead><tbody>`+
     list.map(l=>{
-      const statusBadge=l.status==='pending'?'<span class="badge b-orange">待審核</span>':l.status==='approved'?'<span class="badge b-green">已核准</span>':'<span class="badge b-red">已拒絕</span>';
+      const birthdayTag=l.isBirthday?'<span class="badge b-yellow" style="margin-left:4px;">生日假</span>':'';
+      const statusBadge=(l.status==='pending'?'<span class="badge b-orange">待審核</span>':l.status==='approved'?'<span class="badge b-green">已核准</span>':'<span class="badge b-red">已拒絕</span>')+birthdayTag;
       const actions=l.status==='pending'
         ?`<button class="btn" style="padding:3px 9px;font-size:.6rem;background:var(--green);color:#111;" onclick="reviewLeave('${l.id}','approved')">核准</button>
            <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;margin-left:4px;" onclick="reviewLeave('${l.id}','rejected')">拒絕</button>`
@@ -4036,10 +4142,8 @@ function reviewLeave(id, status){
   if(document.getElementById('panel-schedule').classList.contains('active')) renderSchedule();
 }
 function deleteLeave(id){
-  showModal('刪除申請','確定要刪除此請假申請？',()=>{
-    data.extraLeaves=(data.extraLeaves||[]).filter(x=>x.id!==id);
-    save(); renderExtraLeave(); onProxyElEmpChange(); toast('✓ 已刪除');
-  });
+  data.extraLeaves=(data.extraLeaves||[]).filter(x=>x.id!==id);
+  save(); renderExtraLeave(); onProxyElEmpChange(); toast('✓ 已刪除');
 }
 
 // ── Self-service makeup leave ──
@@ -4059,8 +4163,8 @@ function renderSelfExtraLeave(eid){
       const dates=getDates(period.start,period.end);
       const WD_CH=['日','一','二','三','四','五','六'];
       dateGrid.innerHTML=dates.map(d=>{
-        const already=(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected');
-        const hasScheduled=hasScheduledLeave(eid,d);
+        const already=(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'&&(l.periodId?l.periodId===pid:true));
+        const hasScheduled=hasScheduledLeave(eid,d,pid);
         const onLongLeave=isOnLongLeave(eid,d);
         const disabled=already||hasScheduled||onLongLeave;
         const dt=new Date(d+'T00:00:00');
@@ -4093,7 +4197,8 @@ function renderSelfExtraLeave(eid){
     }
   }
   // history
-  const myLeaves=(data.extraLeaves||[]).filter(l=>l.empId===eid).sort((a,b)=>b.appliedAt.localeCompare(a.appliedAt));
+  const _elPid=parseInt(document.getElementById('self-period')?.value)||0;
+  const myLeaves=(data.extraLeaves||[]).filter(l=>l.empId===eid&&(_elPid?(l.periodId?l.periodId===_elPid:true):true)).sort((a,b)=>b.appliedAt.localeCompare(a.appliedAt));
   const histEl=document.getElementById('self-el-history');
   const histList=document.getElementById('self-el-history-list');
   if(myLeaves.length){
@@ -4120,7 +4225,8 @@ function selfSubmitExtraLeave(){
   if(!emp)return;
   if(!data.extraLeaves) data.extraLeaves=[];
   // 假別衝突檢查
-  const newDates2=checkedDates.filter(d=>!(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'));
+  const _selfPeriodId2=parseInt(document.getElementById('self-period').value)||null;
+  const newDates2=checkedDates.filter(d=>!(data.extraLeaves||[]).find(l=>l.empId===eid&&l.date===d&&l.status!=='rejected'&&(l.periodId?l.periodId===_selfPeriodId2:true)));
   const conflicts2=getLeaveConflicts(eid,newDates2);
   if(conflicts2.length){
     const items=conflicts2.map(c=>`${fd(c.date)}（${c.type}）`).join('、');
@@ -4129,7 +4235,8 @@ function selfSubmitExtraLeave(){
   let added=0, skipped=0;
   checkedDates.forEach(date=>{
     if((data.extraLeaves).find(l=>l.empId===eid&&l.date===date&&l.status!=='rejected')){skipped++;return;}
-    data.extraLeaves.push({id:`${Date.now()}_${Math.floor(Math.random()*1000000)}`,empId:eid,empName:emp.name,shift:emp.dept,date,reason,status:'pending',appliedAt:new Date().toLocaleString('zh-TW')});
+    const _selfPid=parseInt(document.getElementById('self-period').value)||null;
+    data.extraLeaves.push({id:`${Date.now()}_${Math.floor(Math.random()*1000000)}`,empId:eid,empName:emp.name,shift:emp.dept,date,reason,periodId:_selfPid,status:'pending',appliedAt:new Date().toLocaleString('zh-TW')});
     added++;
   });
   if(!added)return toast(skipped?'所選日期均已申請':'請選擇日期',true);
@@ -4555,8 +4662,8 @@ function exportScheduleExcel(){
   const dates=getDates(period.start,period.end);
   const statusMap=buildStatusMap(period);
   const WD=['日','一','二','三','四','五','六'];
-  const ON_LEAVE=['lottery','direct','extra'];
-  const stSym=st=>(st==='lottery'||st==='direct')?'R':st==='extra'?'請':'';
+  const ON_LEAVE=['lottery','direct']; // 只計算排假人數
+  const stSym=st=>(st==='lottery'||st==='direct')?'R':st==='extra'?'請':st==='birthday'?'生':st==='long-start'?'長':st==='long-end'?'假':st==='long-mid'?'|':'';
   const titleOf=emp=>emp.empType||'直';
   const rocY=parseInt(period.start.slice(0,4))-1911;
   const rocM=parseInt(period.start.slice(5,7));
@@ -4771,7 +4878,7 @@ function exportAttendanceExcel(){
   const dates=getDates(period.start,period.end);
   const shifts=filterShift?[filterShift]:data.departments;
   const statusMap=buildStatusMap(period);
-  const ON_LEAVE=['lottery','direct','extra'];
+  const ON_LEAVE=['lottery','direct','extra','long-start','long-end','long-mid'];
 
   // ── 櫃台人員（全部 counterStaff，不限有無排假紀錄）──
   const counterApps=data.counterApplications||[];
@@ -5123,7 +5230,7 @@ function onCounterPeriodChange(){
   dw.innerHTML=dates.map(d=>{
     const already=alreadyLeave.has(d);
     const badge=already?`<span style="font-size:.58rem;padding:1px 5px;border-radius:3px;background:var(--surface3);color:var(--text-dim);margin-left:2px;">已排假</span>`:'';
-    return `<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Serif TC',serif;color:${already?'var(--text-dim)':isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
+    return `<label style="display:inline-flex;align-items:center;gap:5px;margin:3px 7px 3px 0;cursor:pointer;font-size:.8rem;font-family:'Noto Sans TC',sans-serif;color:${already?'var(--text-dim)':isWk(d)?'var(--accent2)':'var(--text)'};text-transform:none;letter-spacing:0;">
     <input type="checkbox" id="counterdate_${d}" value="${d}" style="width:auto;padding:0;accent-color:var(--accent);"${already?' disabled title="已排假"':''}> ${fd(d)}${badge}
   </label>`;
   }).join('');
@@ -5826,6 +5933,21 @@ function buildStatusMap(period){
         if(!hadLottery&&apps.length>0&&apps.length<=lim) apps.forEach(a=>{if(!map[a.empId])map[a.empId]={};if(map[a.empId][d]==='pending')map[a.empId][d]='direct';});
         // ★ 新增：超限且尚未抽籤 → 標記為 needs-lottery
         if(!hadLottery&&apps.length>lim) apps.forEach(a=>{if(!map[a.empId])map[a.empId]={};if(map[a.empId][d]==='pending')map[a.empId][d]='needs-lottery';});
+        // ★ 抽籤後新增排假：若仍為 pending 且名額未滿 → 直接錄取
+        if(hadLottery){
+          const hRec=data.history.find(h=>
+            (h.periodId===pid||(h.periodName===period.name&&h.periodStart===period.start))
+            &&h.shift===shift&&h.date===d&&!h.type
+            &&(h.gender===gender||(h.gender===undefined))
+          );
+          if(hRec) apps.forEach(a=>{
+            if(!map[a.empId])map[a.empId]={};
+            if(map[a.empId][d]==='pending'){
+              // 若名額未滿則直接錄取，否則標為超限（不可申請）
+              map[a.empId][d]=hRec.winners.length<hRec.limit?'direct':'needs-lottery';
+            }
+          });
+        }
       });
     });
   });
@@ -5833,17 +5955,20 @@ function buildStatusMap(period){
   (data.makeupLeaves||[]).filter(m=>m.periodId===pid).forEach(m=>{if(!map[m.empId])map[m.empId]={};map[m.empId][m.date]='direct';});
   // 長假 → 顯示為 extra（長假期間每日標記）
   (data.longLeaves||[]).forEach(l=>{
-    getDates(l.startDate,l.endDate).forEach(d=>{
-      if(d>=period.start&&d<=period.end){
-        if(!map[l.empId])map[l.empId]={};
-        map[l.empId][d]='extra';
-      }
+    const llDates=getDates(l.startDate,l.endDate).filter(d=>d>=period.start&&d<=period.end);
+    llDates.forEach((d,i)=>{
+      if(!map[l.empId])map[l.empId]={};
+      if(llDates.length===1) map[l.empId][d]='long-start';
+      else if(i===0) map[l.empId][d]='long-start';
+      else if(i===llDates.length-1) map[l.empId][d]='long-end';
+      else map[l.empId][d]='long-mid';
     });
   });
-  // 已核准的額外請假
-  (data.extraLeaves||[]).filter(l=>l.status==='approved').forEach(l=>{if(!map[l.empId])map[l.empId]={};map[l.empId][l.date]='extra';});
+  // 已核准的額外請假（依假期篩選：有periodId則比對，無則依日期範圍相容舊資料）
+  const _elInPeriod=l=>l.periodId?l.periodId===pid:(l.date>=period.start&&l.date<=period.end);
+  (data.extraLeaves||[]).filter(l=>l.status==='approved'&&_elInPeriod(l)).forEach(l=>{if(!map[l.empId])map[l.empId]={};map[l.empId][l.date]=l.isBirthday?'birthday':'extra';});
   // 待審核的額外請假 → 顯示為 pending（不覆蓋已有狀態）
-  (data.extraLeaves||[]).filter(l=>l.status==='pending').forEach(l=>{if(!map[l.empId])map[l.empId]={};if(!map[l.empId][l.date])map[l.empId][l.date]='el-pending';});
+  (data.extraLeaves||[]).filter(l=>l.status==='pending'&&_elInPeriod(l)).forEach(l=>{if(!map[l.empId])map[l.empId]={};if(!map[l.empId][l.date])map[l.empId][l.date]='el-pending';});
   return map;
 }
 
@@ -5892,11 +6017,11 @@ function renderSchedule(){
     if(!_cleanerSchedMap[x.name])_cleanerSchedMap[x.name]={};
     _cleanerSchedMap[x.name][x.date]=x;
   });
-  const ON_LEAVE=['lottery','direct','extra'];
+  const ON_LEAVE=['lottery','direct','extra','long-start','long-end','long-mid'];
   const _showLoser=document.getElementById('sch-show-loser')?.checked!==false;
-  const STATUS_ICON={lottery:'R',direct:'R',extra:'請',loser:'✕',pending:'◐','el-pending':'?','needs-lottery':'!'};
-  const STATUS_CLASS={lottery:'cell-lottery',direct:'cell-direct',extra:'cell-extra',loser:'cell-loser',pending:'cell-pending','el-pending':'cell-el-pending','needs-lottery':'cell-needs-lottery'};
-  const STATUS_LABEL={lottery:'抽籤錄取',direct:'休假',extra:'額外假',loser:'未中籤',pending:'申請中','el-pending':'請假待審','needs-lottery':'尚未抽籤'};
+  const STATUS_ICON={lottery:'R',direct:'R',extra:'請',birthday:'生','long-start':'長','long-end':'假','long-mid':'|',loser:'✕',pending:'◐','el-pending':'?','needs-lottery':'!'};
+  const STATUS_CLASS={lottery:'cell-lottery',direct:'cell-direct',extra:'cell-extra',birthday:'cell-extra','long-start':'cell-extra','long-end':'cell-extra','long-mid':'cell-extra',loser:'cell-loser',pending:'cell-pending','el-pending':'cell-el-pending','needs-lottery':'cell-needs-lottery'};
+  const STATUS_LABEL={lottery:'抽籤錄取',direct:'休假',extra:'額外假',birthday:'生日假','long-start':'長假開始','long-end':'長假結束','long-mid':'長假中',loser:'未中籤',pending:'申請中','el-pending':'請假待審','needs-lottery':'尚未抽籤'};
   const _effSt=st=>(st==='loser'&&!_showLoser)?'':st;
   if(_schView==='calendar'){
     // 日期為列、員工為欄
@@ -6567,7 +6692,22 @@ function getEmpQuota(empId, period){
     );
     if(ll) return ll.customQuota;
   }
-  // 若無長假設定，使用全局設定（不再讀 empQuotas 避免跨月污染）
+  // 兼職人員：可排假天數 = 假期所在月份天數 - 上班天數下限
+  const emp=data.employees.find(e=>e.id===empId);
+  if(emp&&(emp.empType||'直')==='兼'){
+    const minWorkDays=data.partTimeQuota||4;
+    if(period){
+      // 計算假期涵蓋的月份天數（取假期起始月）
+      const monthStart=period.start.slice(0,7); // "2026-05"
+      const [y,m]=monthStart.split('-').map(Number);
+      const daysInMonth=new Date(y,m,0).getDate(); // 當月總天數
+      return Math.max(0,daysInMonth-minWorkDays);
+    }
+    // 無假期時用當月天數
+    const now=new Date();
+    const daysInMonth=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    return Math.max(0,daysInMonth-minWorkDays);
+  }
   return data.monthlyQuota||8;
 }
 
@@ -6792,10 +6932,10 @@ function renderSelfSchedule(){
     const dates=getDates(period.start,period.end);
     const shifts=data.departments;
     const statusMap=pub.statusMap;
-    const ON_LEAVE=['lottery','direct','extra'];
-    const STATUS_LABEL={lottery:'抽籤錄取',direct:'休假',extra:'額外假',loser:'未中籤',pending:'申請中','el-pending':'請假待審','needs-lottery':'尚未抽籤'};
-    const STATUS_ICON={lottery:'R',direct:'R',extra:'請',loser:'✕',pending:'◐','el-pending':'?','needs-lottery':'!'};
-    const STATUS_CLASS={lottery:'cell-lottery',direct:'cell-direct',extra:'cell-extra',loser:'cell-loser',pending:'cell-pending','el-pending':'cell-el-pending','needs-lottery':'cell-needs-lottery'};
+    const ON_LEAVE=['lottery','direct','extra','long-start','long-end','long-mid'];
+    const STATUS_LABEL={lottery:'抽籤錄取',direct:'休假',extra:'額外假',birthday:'生日假','long-start':'長假開始','long-end':'長假結束','long-mid':'長假中',loser:'未中籤',pending:'申請中','el-pending':'請假待審','needs-lottery':'尚未抽籤'};
+    const STATUS_ICON={lottery:'R',direct:'R',extra:'請',birthday:'生','long-start':'長','long-end':'假','long-mid':'|',loser:'✕',pending:'◐','el-pending':'?','needs-lottery':'!'};
+    const STATUS_CLASS={lottery:'cell-lottery',direct:'cell-direct',extra:'cell-extra',birthday:'cell-extra','long-start':'cell-extra','long-end':'cell-extra','long-mid':'cell-extra',loser:'cell-loser',pending:'cell-pending','el-pending':'cell-el-pending','needs-lottery':'cell-needs-lottery'};
     const _pubEffSt=st=>(st==='loser'&&pub.hideLoser)?'':st;
     const WD=['日','一','二','三','四','五','六'];
 
@@ -6994,40 +7134,32 @@ function getLeaveConflicts(empId, dates, periodId){
     if((data.longLeaves||[]).some(l=>l.empId===empId&&l.startDate<=date&&date<=l.endDate)){
       conflicts.push({date,type:'長假'});return;
     }
-    // 請假（approved 或 pending）
-    if((data.extraLeaves||[]).some(l=>l.empId===empId&&l.date===date&&l.status!=='rejected')){
+    // 請假（approved 或 pending，生日假不視為衝突；有periodId則只比對同假期）
+    const _elMatch=l=>l.empId===empId&&l.date===date&&l.status!=='rejected'&&!l.isBirthday&&
+      (periodId?(l.periodId?l.periodId===periodId:true):true);
+    if((data.extraLeaves||[]).some(_elMatch)){
       conflicts.push({date,type:'請假'});return;
     }
-    // 排假：直接查 applications，若有 periodId 限制只查該假期
+    // 排假：查實際狀態（只有中籤/直接錄取/申請中/待抽籤才算衝突，未中籤不擋）
     const periods=periodId
       ? data.periods.filter(p=>p.id===periodId)
       : data.periods.filter(p=>p.start<=date&&date<=p.end);
-    const hasApp=periods.some(p=>
-      data.applications.some(a=>a.periodId===p.id&&a.empId===empId&&a.dates.includes(date))
-    );
-    if(hasApp){conflicts.push({date,type:'排假'});return;}
-    // 排假（未中籤 loser）：查 history losers
-    const empGender=emp.gender||'male';
-    const checkPeriods=periodId
-      ? data.periods.filter(p=>p.id===periodId)
-      : data.periods.filter(p=>p.start<=date&&date<=p.end);
-    const isLoser=checkPeriods.some(p=>
-      data.history.some(h=>
-        ((h.periodId===p.id)||(h.periodName===p.name&&h.periodStart===p.start))
-        &&h.shift===emp.dept&&h.date===date&&!h.type
-        &&(h.gender===empGender||h.gender===undefined)
-        &&h.losers.some(w=>w.name===emp.name&&w.dept===emp.dept)
-      )
-    );
-    if(isLoser){conflicts.push({date,type:'排假（未中籤）'});return;}
+    const hasSchedConflict=periods.some(p=>{
+      const st=(buildStatusMap(p)[empId]||{})[date];
+      return st==='lottery'||st==='direct'||st==='needs-lottery';
+    });
+    if(hasSchedConflict){conflicts.push({date,type:'排假'});return;}
   });
   return conflicts;
 }
-function hasScheduledLeave(empId, date){
+function hasScheduledLeave(empId, date, periodId){
   // 檢查該員工在該日是否已有排假申請（含抽籤中籤、直接錄取、超限未抽籤、申請中）
   const emp=data.employees.find(e=>e.id===empId);
   if(!emp)return false;
-  const period=data.periods.find(p=>p.start<=date&&date<=p.end);
+  // 若有指定假期則只查該假期，否則找第一個涵蓋該日的假期
+  const period=periodId
+    ? data.periods.find(p=>p.id===periodId)
+    : data.periods.find(p=>p.start<=date&&date<=p.end);
   if(!period)return false;
   const statusMap=buildStatusMap(period);
   const st=(statusMap[empId]||{})[date];
@@ -7108,6 +7240,9 @@ function refreshElSelects(){
   const mi=document.getElementById('monthly-quota');if(mi)mi.value=quota;
   const aqd=document.getElementById('app-quota-display');if(aqd)aqd.textContent=quota;
   const llgq=document.getElementById('ll-global-quota');if(llgq)llgq.textContent=quota;
+  const ptq=data.partTimeQuota||4;
+  const ptqd=document.getElementById('part-time-quota-display');if(ptqd)ptqd.textContent=ptq;
+  const ptqi=document.getElementById('part-time-quota');if(ptqi)ptqi.value=ptq;
   renderDailyLimitTable();
   renderLongLeaves();
 }
