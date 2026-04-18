@@ -334,6 +334,9 @@ tr:hover td{background:rgba(255,255,255,.018);}
         <option value="實">實</option>
       </select>
     </div>
+    <div class="field"><label>個別上班時間（留空依班別預設，格式：HHMM~HHMM）</label>
+      <input type="text" id="edit-emp-time" placeholder="例：0900~1900" style="width:100%;" maxlength="11">
+    </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-ghost" onclick="closeEditEmployee()">取消</button>
       <button class="btn btn-primary" onclick="saveEditEmployee()">儲存</button>
@@ -451,7 +454,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
             <button class="btn btn-ghost" style="padding:4px 10px;font-size:.6rem;" onclick="clearAllEmployees()">清除全部</button>
           </div>
         </div>
-        <table><thead><tr><th></th><th>#</th><th>姓名</th><th>職稱</th><th>店別</th><th>班別</th><th>制度</th><th>操作</th></tr></thead>
+        <table><thead><tr><th></th><th>#</th><th>姓名</th><th>職稱</th><th>店別</th><th>班別</th><th>制度</th><th>上班時間</th><th>操作</th></tr></thead>
         <tbody id="emp-table"><tr><td colspan="4" class="empty"><div class="empty-icon">👥</div>尚未新增技師</td></tr></tbody></table>
       </div>
     </div>
@@ -1316,6 +1319,7 @@ let USE_LOCAL = true; // 動態載入 Firebase 前先預設本地模式
 const DEFAULT_DATA = {
   employees:[],
   departments:['09-19','12-22','13-23','14-24','16-02'],
+  deptTimes:{}, // 班別預設時間 {dept: {start:'HH:MM', end:'HH:MM'}}
   periods:[],
   applications:[],
   extraLeaves:[],
@@ -1393,6 +1397,7 @@ function hideLoading(){ document.getElementById('loading-overlay').style.display
 function migrateData(d){
   if(!Array.isArray(d.employees)) d.employees=[];
   if(!Array.isArray(d.departments)||!d.departments.length) d.departments=['09-19','12-22','13-23','14-24','16-02'];
+  if(!d.deptTimes) d.deptTimes={};
   if(!Array.isArray(d.periods)) d.periods=[];
   if(!Array.isArray(d.applications)) d.applications=[];
   if(!Array.isArray(d.extraLeaves)) d.extraLeaves=[];
@@ -1839,14 +1844,26 @@ function renderDeptList(){
   el.innerHTML=`<div style="display:flex;flex-direction:column;gap:6px;">` +
     data.departments.map((d,i)=>{
       const cnt=data.employees.filter(e=>e.dept===d).length;
-      return `<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:6px 12px;">
-        <div style="display:flex;flex-direction:column;gap:1px;">
-          <button onclick="moveDept(${i},-1)" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.7rem;padding:0;line-height:1.2;${i===0?'opacity:.2;pointer-events:none':''}">▲</button>
-          <button onclick="moveDept(${i},1)" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.7rem;padding:0;line-height:1.2;${i===data.departments.length-1?'opacity:.2;pointer-events:none':''}">▼</button>
+      const dt=(data.deptTimes||{})[d]||{};
+      const defStart=dt.start||'';
+      const defEnd=dt.end||'';
+      const dk=d.replace(/[^a-z0-9]/gi,'_');
+      return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:8px 12px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+          <div style="display:flex;flex-direction:column;gap:1px;">
+            <button onclick="moveDept(${i},-1)" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.7rem;padding:0;line-height:1.2;${i===0?'opacity:.2;pointer-events:none':''}">▲</button>
+            <button onclick="moveDept(${i},1)" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.7rem;padding:0;line-height:1.2;${i===data.departments.length-1?'opacity:.2;pointer-events:none':''}">▼</button>
+          </div>
+          <span style="font-family:'Space Mono',monospace;font-size:.76rem;font-weight:700;flex:1;">${d}</span>
+          <span class="badge b-yellow">${cnt} 人</span>
+          <button onclick="removeDept('${d}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:.9rem;padding:0;line-height:1;" title="刪除班別">✕</button>
         </div>
-        <span style="font-family:'Space Mono',monospace;font-size:.76rem;font-weight:700;flex:1;">${d}</span>
-        <span class="badge b-yellow">${cnt} 人</span>
-        <button onclick="removeDept('${d}')" style="background:none;border:none;cursor:pointer;color:var(--red);font-size:.9rem;padding:0;line-height:1;" title="刪除班別">✕</button>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span style="font-size:.72rem;color:var(--text-dim);white-space:nowrap;">預設上班時間：</span>
+          <input type="text" id="depttime_${dk}" value="${defStart&&defEnd?defStart.replace(':','')+'~'+defEnd.replace(':',''):''}" placeholder="HHMM~HHMM" maxlength="11" style="width:130px;padding:3px 8px;font-size:.76rem;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text);">
+          <button onclick="saveDeptTime('${d}')" class="btn btn-ghost" style="padding:3px 10px;font-size:.62rem;">儲存</button>
+          ${defStart&&defEnd?`<span style="font-size:.66rem;color:var(--accent);margin-left:4px;">${defStart}–${defEnd}</span>`:''}
+        </div>
       </div>`;
     }).join('') + `</div>`;
 }
@@ -1856,6 +1873,23 @@ function moveDept(idx, dir){
   if(newIdx<0||newIdx>=arr.length)return;
   [arr[idx],arr[newIdx]]=[arr[newIdx],arr[idx]];
   save();renderDeptList();renderDeptOptions();renderShiftDefaults();
+}
+function saveDeptTime(dept){
+  const dk=dept.replace(/[^a-z0-9]/gi,'_');
+  const tv=(document.getElementById('depttime_'+dk)?.value||'').trim();
+  const tp=tv.split(/[~～]/);
+  const start=parseHHMM(tp[0]||'');
+  const end=parseHHMM(tp[1]||'');
+  if(!data.deptTimes)data.deptTimes={};
+  data.deptTimes[dept]={start,end};
+  save();renderDeptList();toast(`✓ ${dept} 預設時間已儲存`);
+}
+function parseHHMM(v){
+  if(!v)return '';
+  v=v.replace(/[^0-9]/g,'');
+  if(v.length===3)v='0'+v;
+  if(v.length<3)return '';
+  return v.slice(0,2)+':'+v.slice(2,4);
 }
 function renderDeptOptions(){
   const empSel=document.getElementById('emp-dept');
@@ -2119,6 +2153,7 @@ function openEditEmployee(id){
   const gv=e.gender||'male';
   document.querySelectorAll('input[name="edit-emp-gender"]').forEach(r=>r.checked=(r.value===gv));
   document.getElementById('edit-emp-type').value=e.empType||'直';
+  document.getElementById('edit-emp-time').value=(e.customStart&&e.customEnd)?e.customStart.replace(':','')+'~'+e.customEnd.replace(':',''):'';
   document.getElementById('edit-emp-modal').style.display='flex';
 }
 function closeEditEmployee(){
@@ -2140,6 +2175,9 @@ function saveEditEmployee(){
   e.dept=dept;
   e.gender=document.querySelector('input[name="edit-emp-gender"]:checked')?.value||'male';
   e.empType=document.getElementById('edit-emp-type').value||'直';
+  const _etv=(document.getElementById('edit-emp-time').value||'').trim();
+  if(_etv){const _etp=_etv.split(/[~～]/);const _ets=parseHHMM(_etp[0]||'');const _ete=parseHHMM(_etp[1]||'');e.customStart=_ets;e.customEnd=_ete;}
+  else{e.customStart='';e.customEnd='';}
   save();renderEmployees();updateStats();closeEditEmployee();toast('✓ 員工資料已更新');
 }
 
@@ -2198,6 +2236,7 @@ function renderEmployees(){
     <td><span class="badge b-green" style="font-size:.6rem;">${e.store||'竹北店'}</span></td>
     <td><span class="badge b-yellow">${e.dept}</span></td>
     <td><span class="badge b-gray" style="font-size:.6rem;">${e.empType||'直'}</span></td>
+    <td style="font-family:'Space Mono',monospace;font-size:.64rem;color:var(--text-dim);white-space:nowrap;">${e.customStart&&e.customEnd?e.customStart+'–'+e.customEnd:'（依班別）'}</td>
     <td style="white-space:nowrap;">
       <button class="btn btn-ghost" style="padding:3px 10px;font-size:.6rem;margin-right:4px;" onclick="openEditEmployee(${e.id})">編輯</button>
       <button class="btn btn-danger" style="padding:3px 10px;font-size:.6rem;" onclick="removeEmployee(${e.id})">移除</button>
@@ -4907,24 +4946,41 @@ function exportAttendanceExcel(){
   if(!allEmps.length)return toast('篩選條件下無員工',true);
 
   // ── 上班時段 offset（1=09:00…18=02:00）──
-  function getWorkOffsets(dept, isHoliday){
+  // dept: 班別名稱；customTime: {start:'HH:MM', end:'HH:MM'} 優先於班別
+  function getWorkOffsets(dept, isHoliday, customTime){
+    const h2o={9:1,10:2,11:3,12:4,13:5,14:6,15:7,16:8,17:9,18:10,19:11,20:12,21:13,22:14,23:15,0:16,1:17,2:18};
+    // 從 startH 填到 endH（含 endH，因格子代表「此整點小時在上班」）
+    function fillRange(sh,em,eh){
+      // em: end minutes (若非零則不含 endH 格)
+      const s=new Set();let h=sh;
+      const stop=em>0?eh:(eh+1)%24; // 整點下班含 eh，非整點不含 eh
+      // 但 stop 用於不同繞圈邏輯，改用計數
+      let count=0;
+      while(h!==eh&&count<24){if(h2o[h])s.add(h2o[h]);h=(h+1)%24;count++;}
+      if(em===0&&h2o[eh])s.add(h2o[eh]); // 整點下班：含 endH 格
+      return s;
+    }
+    // 優先用個別時間或班別預設時間
+    if(customTime&&customTime.start&&customTime.end){
+      const sh=parseInt(customTime.start.split(':')[0]);
+      const em=parseInt((customTime.end.split(':')[1])||'0');
+      const eh=parseInt(customTime.end.split(':')[0]);
+      return fillRange(sh,em,eh);
+    }
     const ch=dept.charAt(0);
+    // 早班 09:00-18:00 → offset 1~10（含18:00格）
     if(ch==='早') return new Set([1,2,3,4,5,6,7,8,9,10]);
+    // 中班 12:00-21:00 → offset 4~13
     if(ch==='中') return new Set([4,5,6,7,8,9,10,11,12,13]);
-    // 晚班平日15:00~00:00，假日17:00~02:00
+    // 晚班平日 15:00-00:00，假日 17:00-02:00（含結束格）
     if(ch==='晚') return isHoliday ? new Set([9,10,11,12,13,14,15,16,17,18]) : new Set([7,8,9,10,11,12,13,14,15,16]);
-    // 自定義時間：格式 HH:MM-HH:MM 或 HH-HH
+    // 班別名稱即時間格式（如 09-19、14-24）
     const m=dept.match(/(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?/);
     if(m){
-      const h2o={9:1,10:2,11:3,12:4,13:5,14:6,15:7,16:8,17:9,18:10,19:11,20:12,21:13,22:14,23:15,0:16,1:17,2:18};
-      const startH=parseInt(m[1]), startM=parseInt(m[2]||'0');
-      const endH=parseInt(m[3]), endM=parseInt(m[4]||'0');
-      // 非整點結束：取當前整點（floor，即不含該小時）；開始時間照原樣
-      const effStart=startH;
-      const effEnd=endH;
-      const s=new Set();let h=effStart;
-      while(h!==effEnd){s.add(h2o[h]);h=(h+1)%24;}
-      return s;
+      const sh=parseInt(m[1]);
+      const em=parseInt(m[4]||'0');
+      const eh=parseInt(m[3])%24; // 24→0（午夜整點）
+      return fillRange(sh,em,eh);
     }
     return new Set([1,2,3,4,5,6,7,8,9,10]);
   }
@@ -5065,7 +5121,8 @@ function exportAttendanceExcel(){
         }
       } else {
         const emp=er.emp;
-        const workOffs=getWorkOffsets(emp.dept, isWkd);
+        const _empCustom=(emp.customStart&&emp.customEnd)?{start:emp.customStart,end:emp.customEnd}:((data.deptTimes||{})[emp.dept]||null);
+        const workOffs=getWorkOffsets(emp.dept, isWkd, _empCustom);
         const isOnLeave=ON_LEAVE.includes((statusMap[emp.id]||{})[d]);
         rows[rowIdx][colBase]=emp.name;
         cellStyles[rowIdx][colBase]=1;
