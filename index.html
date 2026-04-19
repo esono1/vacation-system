@@ -4798,9 +4798,8 @@ function exportScheduleExcel(){
     const counterApps=data.counterApplications||[];
     const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
     const csOrder=(data.counterStaff||[]).map(s=>s.adminId);
-    // 以 counterStaff 為基礎顯示所有櫃台人員，依假期店別或 filterStore 篩選
-    const _ctrStore=filterStore||period.storeRestrict||'';
-    const allCounterStaff=(data.counterStaff||[]).filter(s=>!_ctrStore||!s.store||s.store===_ctrStore);
+    // 匯出假表顯示所有櫃台（不按假期店別過濾）
+    const allCounterStaff=(data.counterStaff||[]);
     const counterAdmins=allCounterStaff.map(s=>{
       const admin=(data.admins||[]).find(a=>a.id===s.adminId);
       return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,shift:s.shift||'',store:s.store||''};
@@ -4928,8 +4927,8 @@ function exportAttendanceExcel(){
   // ── 櫃台人員（依假期或 filterStore 店別篩選）──
   const counterApps=data.counterApplications||[];
   const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
-  const _attCtrStore=filterStore||period.storeRestrict||'';
-  const counterAdmins=(data.counterStaff||[]).filter(s=>!_attCtrStore||(s.store||'竹北店')===_attCtrStore).map(s=>{
+  // 出勤表：顯示所有櫃台，但每天依實際上班店別判斷是否填色
+  const counterAdmins=(data.counterStaff||[]).map(s=>{
     const admin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,role:admin?.role||'主管',shift:s.shift||'早',store:s.store||''};
   });
@@ -5116,17 +5115,24 @@ function exportAttendanceExcel(){
             _caShiftStr=_caOvr.shift;
           }
         }
-        // 若假期限定店別，當天實際上班店別不符則不填色
+        // 若假期限定店別，當天實際上班店別不符則整行不顯示
         const _periodStore=period.storeRestrict||'';
         const _caWrongStore=_periodStore&&_caActualStore!==_periodStore;
-        const workOffs=_caWrongStore?new Set():getWorkOffsets(_caShiftStr, isWkd);
         const isOnLeave=counterDateMap[ca.id]&&counterDateMap[ca.id].has(d);
-        rows[rowIdx][colBase]=ca.name;
-        cellStyles[rowIdx][colBase]=1;
-        for(let off=1;off<=18;off++){
-          const isWork=workOffs.has(off)&&!isOnLeave;
-          rows[rowIdx][colBase+off]=isWork?'':null;
-          cellStyles[rowIdx][colBase+off]=isWork?2:1;
+        if(_caWrongStore){
+          // 不符合店別：名稱和填色全部清空
+          rows[rowIdx][colBase]=null;
+          cellStyles[rowIdx][colBase]=1;
+          for(let off=1;off<=18;off++){rows[rowIdx][colBase+off]=null;cellStyles[rowIdx][colBase+off]=1;}
+        } else {
+          const workOffs=getWorkOffsets(_caShiftStr, isWkd);
+          rows[rowIdx][colBase]=ca.name;
+          cellStyles[rowIdx][colBase]=1;
+          for(let off=1;off<=18;off++){
+            const isWork=workOffs.has(off)&&!isOnLeave;
+            rows[rowIdx][colBase+off]=isWork?'':null;
+            cellStyles[rowIdx][colBase+off]=isWork?2:1;
+          }
         }
       } else {
         const emp=er.emp;
@@ -6103,8 +6109,8 @@ function renderSchedule(){
   const counterApps=data.counterApplications||[];
   const counterInPeriod=_showCounter?counterApps.filter(a=>a.periodId===pid):[];
   // 固定顯示已設定的櫃台人員，依假期店別限制篩選
-  const _schCtrStore=period.storeRestrict||'';
-  const counterAdmins=_showCounter?(data.counterStaff||[]).filter(s=>!_schCtrStore||(s.store||'竹北店')===_schCtrStore).map(s=>{
+  // 假表顯示所有櫃台（不按假期店別過濾）
+  const counterAdmins=_showCounter?(data.counterStaff||[]).map(s=>{
     const _csAdmin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||s.adminName,role:_csAdmin?.role||'主管',shift:s.shift||'',store:s.store||''};
   }):[];
