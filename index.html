@@ -5101,20 +5101,21 @@ function exportAttendanceExcel(){
         merges.push({sr:rowIdx+1,er:rowIdx+1,sc:colBase+1,ec:colBase+COLS_PER_DAY});
       } else if(er.type==='counter'){
         const ca=er.ca;
-        // 若假期限定店別，其他店別的櫃台不填色
-        const _periodStore=period.storeRestrict||'';
-        const _caStore=ca.store||'竹北店';
-        const _caWrongStore=_periodStore&&_caStore!==_periodStore; // 同店別才填色
-        // 優先用特殊排班時間
+        // 優先用特殊排班時間，並取得當天實際上班店別
         const _caOvr=(data.counterShiftOverrides||[]).find(x=>x.adminId===ca.id&&x.date===d);
         let _caShiftStr=ca.shift;
+        let _caActualStore=ca.store||'竹北店'; // 當天實際上班店別
         if(_caOvr){
+          if(_caOvr.store) _caActualStore=_caOvr.store; // override 有指定店別
           if(_caOvr.shift==='custom'&&_caOvr.customStart&&_caOvr.customEnd){
             _caShiftStr=`${_caOvr.customStart}-${_caOvr.customEnd}`;
           } else if(_caOvr.shift&&_caOvr.shift!=='custom'){
             _caShiftStr=_caOvr.shift;
           }
         }
+        // 若假期限定店別，當天實際上班店別不符則不填色
+        const _periodStore=period.storeRestrict||'';
+        const _caWrongStore=_periodStore&&_caActualStore!==_periodStore;
         const workOffs=_caWrongStore?new Set():getWorkOffsets(_caShiftStr, isWkd);
         const isOnLeave=counterDateMap[ca.id]&&counterDateMap[ca.id].has(d);
         rows[rowIdx][colBase]=ca.name;
@@ -5126,14 +5127,23 @@ function exportAttendanceExcel(){
         }
       } else {
         const emp=er.emp;
-        // 個別設定優先；假日且跨午夜（平日不超過午夜）則改用班別預設
+        // 個別設定最優先；假日且個別設定跨午夜才改用班別預設
         const _empRaw=(emp.customStart&&emp.customEnd)?{start:emp.customStart,end:emp.customEnd}:null;
         const _deptDefault=(data.deptTimes||{})[emp.dept]||null;
-        let _empCustom=_empRaw||_deptDefault;
-        if(_empRaw&&isWkd){
-          const _esh=parseInt(_empRaw.start.split(':')[0]),_eeh=parseInt(_empRaw.end.split(':')[0]);
-          const _crossMidnight=_eeh<_esh||_eeh===0;
-          if(_crossMidnight) _empCustom=_deptDefault; // 假日跨午夜：使用班別預設
+        let _empCustom=null;
+        if(_empRaw){
+          if(isWkd){
+            // 假日：跨午夜則回退班別預設，否則用個別設定
+            const _esh=parseInt(_empRaw.start.split(':')[0]);
+            const _eeh=parseInt(_empRaw.end.split(':')[0]);
+            const _crossMidnight=(_eeh<_esh)||(_eeh===0&&_empRaw.end!=='00:00')||(_empRaw.end==='00:00'&&_empRaw.start!=='00:00');
+            _empCustom=_crossMidnight?_deptDefault:_empRaw;
+          } else {
+            // 平日：直接用個別設定
+            _empCustom=_empRaw;
+          }
+        } else {
+          _empCustom=_deptDefault;
         }
         const workOffs=getWorkOffsets(emp.dept, isWkd, _empCustom);
         const isOnLeave=ON_LEAVE.includes((statusMap[emp.id]||{})[d]);
