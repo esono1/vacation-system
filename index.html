@@ -451,7 +451,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
           <div class="section-title" style="margin-bottom:0">技師列表</div>
           <div style="display:flex;gap:7px;align-items:center;">
             <select id="filter-dept" onchange="renderEmployees()" style="width:120px;padding:5px 9px;font-size:.76rem;"></select>
-            <button class="btn btn-ghost" style="padding:4px 10px;font-size:.6rem;" onclick="clearAllEmployees()">清除全部</button>
+
           </div>
         </div>
         <table><thead><tr><th></th><th>#</th><th>姓名</th><th>職稱</th><th>店別</th><th>班別</th><th>制度</th><th>上班時間</th><th>操作</th></tr></thead>
@@ -993,7 +993,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
         <div class="card">
           <div class="section-title">設定櫃檯班別</div>
           <div style="font-family:'Space Mono',monospace;font-size:.62rem;color:var(--text-dim);margin-bottom:14px;">
-            早班：09:00–18:00（平日/假日相同）<br>
+            早班：09:00–17:30（平日/假日相同）<br>
             中班：13:00–22:00（平日/假日相同）<br>
             晚班：15:00–24:00（平日）／17:00–02:00（假日）
           </div>
@@ -4955,7 +4955,8 @@ function exportAttendanceExcel(){
     // 從 startH 填到 endH（含 endH 若整點，因格子代表「此整點小時在上班」）
     function fillRange(sh,em,eh){
       // 計算應填格數：從 sh 到 eh 的小時數（跨午夜正確處理）
-      const totalH=((eh-sh+24)%24)+(em===0?1:0); // 整點下班多填最後一格
+      // 無論整點與否，填色含結束小時（員工在該小時仍在上班）
+      const totalH=((eh-sh+24)%24)+1;
       const s=new Set();let h=sh;
       for(let i=0;i<totalH;i++){if(h2o[h])s.add(h2o[h]);h=(h+1)%24;}
       return s;
@@ -4968,8 +4969,8 @@ function exportAttendanceExcel(){
       return fillRange(sh,em,eh);
     }
     const ch=dept.charAt(0);
-    // 早班 09:00-18:00 → offset 1~10（含18:00格）
-    if(ch==='早') return new Set([1,2,3,4,5,6,7,8,9,10]);
+    // 早班 09:00-17:30 → offset 1~9（09:00~17:00，含17:00格）
+    if(ch==='早') return new Set([1,2,3,4,5,6,7,8,9]);
     // 中班 12:00-21:00 → offset 4~13
     if(ch==='中') return new Set([4,5,6,7,8,9,10,11,12,13]);
     // 晚班平日 15:00-00:00，假日 17:00-02:00（含結束格）
@@ -5100,6 +5101,10 @@ function exportAttendanceExcel(){
         merges.push({sr:rowIdx+1,er:rowIdx+1,sc:colBase+1,ec:colBase+COLS_PER_DAY});
       } else if(er.type==='counter'){
         const ca=er.ca;
+        // 若假期限定店別，其他店別的櫃台不填色
+        const _periodStore=period.storeRestrict||'';
+        const _caStore=ca.store||'竹北店';
+        const _caWrongStore=_periodStore&&_caStore!==_periodStore;
         // 優先用特殊排班時間
         const _caOvr=(data.counterShiftOverrides||[]).find(x=>x.adminId===ca.id&&x.date===d);
         let _caShiftStr=ca.shift;
@@ -5110,7 +5115,7 @@ function exportAttendanceExcel(){
             _caShiftStr=_caOvr.shift;
           }
         }
-        const workOffs=getWorkOffsets(_caShiftStr, isWkd);
+        const workOffs=_caWrongStore?new Set():getWorkOffsets(_caShiftStr, isWkd);
         const isOnLeave=counterDateMap[ca.id]&&counterDateMap[ca.id].has(d);
         rows[rowIdx][colBase]=ca.name;
         cellStyles[rowIdx][colBase]=1;
@@ -5121,7 +5126,15 @@ function exportAttendanceExcel(){
         }
       } else {
         const emp=er.emp;
-        const _empCustom=(emp.customStart&&emp.customEnd)?{start:emp.customStart,end:emp.customEnd}:((data.deptTimes||{})[emp.dept]||null);
+        // 若個別時間跨午夜（結束<開始），回退到班別預設時間
+        const _empRaw=(emp.customStart&&emp.customEnd)?{start:emp.customStart,end:emp.customEnd}:null;
+        const _deptDefault=(data.deptTimes||{})[emp.dept]||null;
+        let _empCustom=_empRaw||_deptDefault;
+        if(_empRaw){
+          const _esh=parseInt(_empRaw.start.split(':')[0]),_eeh=parseInt(_empRaw.end.split(':')[0]);
+          const _crossMidnight=_eeh<_esh||_eeh===0;
+          if(_crossMidnight) _empCustom=_deptDefault; // 跨午夜：使用班別預設
+        }
         const workOffs=getWorkOffsets(emp.dept, isWkd, _empCustom);
         const isOnLeave=ON_LEAVE.includes((statusMap[emp.id]||{})[d]);
         rows[rowIdx][colBase]=emp.name;
