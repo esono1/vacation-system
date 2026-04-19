@@ -4968,13 +4968,16 @@ function exportAttendanceExcel(){
       const eh=parseInt(customTime.end.split(':')[0]);
       return fillRange(sh,em,eh);
     }
-    const ch=dept.charAt(0);
-    // 早班 09:00-17:30 → offset 1~9（09:00~17:00，含17:00格）
-    if(ch==='早') return new Set([1,2,3,4,5,6,7,8,9]);
-    // 中班 12:00-21:00 → offset 4~13
-    if(ch==='中') return new Set([4,5,6,7,8,9,10,11,12,13]);
-    // 晚班平日 15:00-00:00，假日 17:00-02:00（含結束格）
-    if(ch==='晚') return isHoliday ? new Set([9,10,11,12,13,14,15,16,17,18]) : new Set([7,8,9,10,11,12,13,14,15,16]);
+    // 班別名稱對應（完整比對，避免早中班被誤判為早班）
+    const deptN=dept.trim();
+    // 早班 09:00-17:30
+    if(deptN==='早班'||deptN==='早') return new Set([1,2,3,4,5,6,7,8,9]);
+    // 中班 12:00-21:00
+    if(deptN==='中班'||deptN==='中') return new Set([4,5,6,7,8,9,10,11,12,13]);
+    // 晚班平日 15:00-00:00，假日 17:00-02:00
+    if(deptN==='晚班'||deptN==='晚') return isHoliday ? new Set([9,10,11,12,13,14,15,16,17,18]) : new Set([7,8,9,10,11,12,13,14,15,16]);
+    // 早中班等其他命名班別：無個別設定時不填色（需設定班別預設時間）
+    if(deptN==='早中班') return new Set();
     // 班別名稱即時間格式（如 09-19、14-24）
     const m=dept.match(/(\d{1,2})(?::(\d{2}))?-(\d{1,2})(?::(\d{2}))?/);
     if(m){
@@ -5132,14 +5135,14 @@ function exportAttendanceExcel(){
         const _deptDefault=(data.deptTimes||{})[emp.dept]||null;
         let _empCustom=null;
         if(_empRaw){
-          if(isWkd){
-            // 假日：跨午夜則回退班別預設，否則用個別設定
+          if(!isWkd){
+            // 平日：跨午夜則回退班別預設（平日不應超過午夜）
             const _esh=parseInt(_empRaw.start.split(':')[0]);
             const _eeh=parseInt(_empRaw.end.split(':')[0]);
-            const _crossMidnight=(_eeh<_esh)||(_eeh===0&&_empRaw.end!=='00:00')||(_empRaw.end==='00:00'&&_empRaw.start!=='00:00');
+            const _crossMidnight=_eeh<_esh||(_eeh===0&&_empRaw.end.split(':')[1]!=='00');
             _empCustom=_crossMidnight?_deptDefault:_empRaw;
           } else {
-            // 平日：直接用個別設定
+            // 假日：直接用個別設定（假日可跨午夜）
             _empCustom=_empRaw;
           }
         } else {
