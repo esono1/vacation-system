@@ -4927,8 +4927,17 @@ function exportAttendanceExcel(){
   // ── 櫃台人員（依假期或 filterStore 店別篩選）──
   const counterApps=data.counterApplications||[];
   const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
-  // 出勤表：顯示所有櫃台，但每天依實際上班店別判斷是否填色
-  const counterAdmins=(data.counterStaff||[]).map(s=>{
+  // 出勤表：只顯示該假期中至少有一天在該假期店別上班的櫃台人員
+  const _attPeriodStore=period.storeRestrict||'';
+  const counterAdmins=(data.counterStaff||[]).filter(s=>{
+    if(!_attPeriodStore) return true; // 假期無店別限制：顯示所有人
+    // 判斷整個假期中是否有任一天在該店別上班
+    return dates.some(d=>{
+      const ovr=(data.counterShiftOverrides||[]).find(x=>x.adminId===s.adminId&&x.date===d);
+      const actualStore=ovr?.store||s.store||'竹北店';
+      return actualStore===_attPeriodStore;
+    });
+  }).map(s=>{
     const admin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,role:admin?.role||'主管',shift:s.shift||'早',store:s.store||''};
   });
@@ -5120,19 +5129,10 @@ function exportAttendanceExcel(){
         const _caWrongStore=_periodStore&&_caActualStore!==_periodStore;
         const isOnLeave=counterDateMap[ca.id]&&counterDateMap[ca.id].has(d);
         if(_caWrongStore){
-          // 不符合店別：清空內容，記錄需往上合併的位置
+          // 不符合店別（當天）：清空不填色
           rows[rowIdx][colBase]=null;
           cellStyles[rowIdx][colBase]=1;
           for(let off=1;off<=18;off++){rows[rowIdx][colBase+off]=null;cellStyles[rowIdx][colBase+off]=1;}
-          // 往上合併：找到此欄位上方最近一個有內容的列做合併
-          // 名稱欄往上合併
-          let _mergeStartR=rowIdx-1;
-          while(_mergeStartR>rowBase+1&&rows[_mergeStartR][colBase]===null) _mergeStartR--;
-          if(_mergeStartR<rowIdx) merges.push({sr:_mergeStartR+1,er:rowIdx+1,sc:colBase+1,ec:colBase+1});
-          // 時段欄整體往上合併
-          let _mergeStartT=rowIdx-1;
-          while(_mergeStartT>rowBase+1&&rows[_mergeStartT][colBase+1]===null) _mergeStartT--;
-          if(_mergeStartT<rowIdx) merges.push({sr:_mergeStartT+1,er:rowIdx+1,sc:colBase+2,ec:colBase+COLS_PER_DAY});
         } else {
           const workOffs=getWorkOffsets(_caShiftStr, isWkd);
           rows[rowIdx][colBase]=ca.name;
@@ -5249,8 +5249,23 @@ function exportAttendanceExcel(){
   }
   colsXml+='</cols>';
 
+  // 過濾重疊的 merge（Excel 不允許）
+  const cleanMerges=[];
+  const usedCells=new Set();
+  merges.forEach(m=>{
+    let conflict=false;
+    for(let r=m.sr;r<=m.er&&!conflict;r++)
+      for(let c=m.sc;c<=m.ec&&!conflict;c++)
+        if(usedCells.has(`${r}_${c}`)) conflict=true;
+    if(!conflict){
+      cleanMerges.push(m);
+      for(let r=m.sr;r<=m.er;r++)
+        for(let c=m.sc;c<=m.ec;c++)
+          usedCells.add(`${r}_${c}`);
+    }
+  });
   let mergeXml='';
-  if(merges.length) mergeXml=`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${colNameA(m.sc)}${m.sr}:${colNameA(m.ec)}${m.er}"/>`).join('')}</mergeCells>`;
+  if(cleanMerges.length) mergeXml=`<mergeCells count="${cleanMerges.length}">${cleanMerges.map(m=>`<mergeCell ref="${colNameA(m.sc)}${m.sr}:${colNameA(m.ec)}${m.er}"/>`).join('')}</mergeCells>`;
 
   const sheetXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView showGridLines="1" workbookViewId="0" zoomScale="70" zoomScaleNormal="70"/></sheetViews>${colsXml}<sheetData>${sheetRowsXml}</sheetData>${mergeXml}</worksheet>`;
 
