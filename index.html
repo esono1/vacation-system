@@ -4929,7 +4929,7 @@ function exportAttendanceExcel(){
   const counterApps=data.counterApplications||[];
   const counterInPeriod=counterApps.filter(a=>a.periodId===pid);
   const _attCtrStore=filterStore||period.storeRestrict||'';
-  const counterAdmins=(data.counterStaff||[]).filter(s=>!_attCtrStore||!s.store||s.store===_attCtrStore).map(s=>{
+  const counterAdmins=(data.counterStaff||[]).filter(s=>!_attCtrStore||(s.store||'竹北店')===_attCtrStore).map(s=>{
     const admin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||admin?.username||s.adminId,role:admin?.role||'主管',shift:s.shift||'早',store:s.store||''};
   });
@@ -5104,7 +5104,7 @@ function exportAttendanceExcel(){
         // 若假期限定店別，其他店別的櫃台不填色
         const _periodStore=period.storeRestrict||'';
         const _caStore=ca.store||'竹北店';
-        const _caWrongStore=_periodStore&&_caStore!==_periodStore;
+        const _caWrongStore=_periodStore&&_caStore!==_periodStore; // 同店別才填色
         // 優先用特殊排班時間
         const _caOvr=(data.counterShiftOverrides||[]).find(x=>x.adminId===ca.id&&x.date===d);
         let _caShiftStr=ca.shift;
@@ -5126,14 +5126,14 @@ function exportAttendanceExcel(){
         }
       } else {
         const emp=er.emp;
-        // 若個別時間跨午夜（結束<開始），回退到班別預設時間
+        // 個別設定優先；假日且跨午夜（平日不超過午夜）則改用班別預設
         const _empRaw=(emp.customStart&&emp.customEnd)?{start:emp.customStart,end:emp.customEnd}:null;
         const _deptDefault=(data.deptTimes||{})[emp.dept]||null;
         let _empCustom=_empRaw||_deptDefault;
-        if(_empRaw){
+        if(_empRaw&&isWkd){
           const _esh=parseInt(_empRaw.start.split(':')[0]),_eeh=parseInt(_empRaw.end.split(':')[0]);
           const _crossMidnight=_eeh<_esh||_eeh===0;
-          if(_crossMidnight) _empCustom=_deptDefault; // 跨午夜：使用班別預設
+          if(_crossMidnight) _empCustom=_deptDefault; // 假日跨午夜：使用班別預設
         }
         const workOffs=getWorkOffsets(emp.dept, isWkd, _empCustom);
         const isOnLeave=ON_LEAVE.includes((statusMap[emp.id]||{})[d]);
