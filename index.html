@@ -5120,10 +5120,14 @@ function exportAttendanceExcel(){
         const _caWrongStore=_periodStore&&_caActualStore!==_periodStore;
         const isOnLeave=counterDateMap[ca.id]&&counterDateMap[ca.id].has(d);
         if(_caWrongStore){
-          // 不符合店別：名稱和填色全部清空
+          // 不符合店別：整列往上合併（視覺上補滿上方格子）
           rows[rowIdx][colBase]=null;
           cellStyles[rowIdx][colBase]=1;
           for(let off=1;off<=18;off++){rows[rowIdx][colBase+off]=null;cellStyles[rowIdx][colBase+off]=1;}
+          // 與上一列合併（往上補）：名稱欄 + 所有時段欄各自垂直合併
+          const _mergeUpRow=rowIdx-1;
+          merges.push({sr:_mergeUpRow+1,er:rowIdx+1,sc:colBase+1,ec:colBase+1}); // 名稱欄
+          merges.push({sr:_mergeUpRow+1,er:rowIdx+1,sc:colBase+2,ec:colBase+COLS_PER_DAY}); // 時段欄整體合併
         } else {
           const workOffs=getWorkOffsets(_caShiftStr, isWkd);
           rows[rowIdx][colBase]=ca.name;
