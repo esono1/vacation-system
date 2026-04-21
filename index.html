@@ -334,8 +334,17 @@ tr:hover td{background:rgba(255,255,255,.018);}
         <option value="實">實</option>
       </select>
     </div>
-    <div class="field"><label>個別上班時間（留空依班別預設，格式：HHMM~HHMM）</label>
-      <input type="text" id="edit-emp-time" placeholder="例：0900~1900" style="width:100%;" maxlength="11">
+    <div class="field">
+      <label>假日個別上班時間（留空依班別預設，格式：HHMM~HHMM）</label>
+      <input type="text" id="edit-emp-time" placeholder="例：1700~0200" style="width:100%;" maxlength="11">
+      <label style="display:flex;align-items:center;gap:6px;margin-top:6px;cursor:pointer;font-size:.82rem;">
+        <input type="checkbox" id="edit-emp-weekday-same" style="width:auto;accent-color:var(--accent);" onchange="onEmpWeekdaySameChange()">
+        平日上班時間與假日相同
+      </label>
+      <div id="edit-emp-weekday-wrap" style="display:none;margin-top:6px;">
+        <label style="font-size:.8rem;color:var(--text-dim);">平日個別上班時間（格式：HHMM~HHMM）</label>
+        <input type="text" id="edit-emp-weekday-time" placeholder="例：1500~0000" style="width:100%;margin-top:3px;" maxlength="11">
+      </div>
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:20px;">
       <button class="btn btn-ghost" onclick="closeEditEmployee()">取消</button>
@@ -2171,11 +2180,22 @@ function openEditEmployee(id){
   document.querySelectorAll('input[name="edit-emp-gender"]').forEach(r=>r.checked=(r.value===gv));
   document.getElementById('edit-emp-type').value=e.empType||'直';
   document.getElementById('edit-emp-time').value=(e.customStart&&e.customEnd)?e.customStart.replace(':','')+'~'+e.customEnd.replace(':',''):'';
+  // 平日時間勾選與欄位
+  const _wdSame=!!(e.weekdaySame);
+  const _wdCb=document.getElementById('edit-emp-weekday-same');
+  const _wdWrap=document.getElementById('edit-emp-weekday-wrap');
+  if(_wdCb){_wdCb.checked=_wdSame;_wdWrap.style.display=_wdSame?'none':'block';}
+  document.getElementById('edit-emp-weekday-time').value=(e.weekdayStart&&e.weekdayEnd&&!_wdSame)?e.weekdayStart.replace(':','')+'~'+e.weekdayEnd.replace(':',''):'';
   document.getElementById('edit-emp-modal').style.display='flex';
 }
 function closeEditEmployee(){
   _editEmpId=null;
   document.getElementById('edit-emp-modal').style.display='none';
+}
+function onEmpWeekdaySameChange(){
+  const checked=document.getElementById('edit-emp-weekday-same')?.checked;
+  const wrap=document.getElementById('edit-emp-weekday-wrap');
+  if(wrap)wrap.style.display=checked?'none':'block';
 }
 function saveEditEmployee(){
   const e=data.employees.find(x=>x.id===_editEmpId);
@@ -2195,6 +2215,15 @@ function saveEditEmployee(){
   const _etv=(document.getElementById('edit-emp-time').value||'').trim();
   if(_etv){const _etp=_etv.split(/[~～]/);const _ets=parseHHMM(_etp[0]||'');const _ete=parseHHMM(_etp[1]||'');e.customStart=_ets;e.customEnd=_ete;}
   else{e.customStart='';e.customEnd='';}
+  // 平日個別時間
+  const _wdSameCb=document.getElementById('edit-emp-weekday-same');
+  const _wdSame=_wdSameCb?.checked||false;
+  e.weekdaySame=_wdSame;
+  if(!_wdSame){
+    const _wdtv=(document.getElementById('edit-emp-weekday-time').value||'').trim();
+    if(_wdtv){const _wdp=_wdtv.split(/[~～]/);e.weekdayStart=parseHHMM(_wdp[0]||'');e.weekdayEnd=parseHHMM(_wdp[1]||'');}
+    else{e.weekdayStart='';e.weekdayEnd='';}
+  } else {e.weekdayStart='';e.weekdayEnd='';}
   save();renderEmployees();updateStats();closeEditEmployee();toast('✓ 員工資料已更新');
 }
 
@@ -2253,7 +2282,13 @@ function renderEmployees(){
     <td><span class="badge b-green" style="font-size:.6rem;">${e.store||'竹北店'}</span></td>
     <td><span class="badge b-yellow">${e.dept}</span></td>
     <td><span class="badge b-gray" style="font-size:.6rem;">${e.empType||'直'}</span></td>
-    <td style="font-family:'Space Mono',monospace;font-size:.64rem;color:var(--text-dim);white-space:nowrap;">${e.customStart&&e.customEnd?e.customStart+'–'+e.customEnd:'（依班別）'}</td>
+    <td style="font-family:'Space Mono',monospace;font-size:.64rem;color:var(--text-dim);white-space:nowrap;">${(()=>{
+      if(!e.customStart||!e.customEnd) return '（依班別）';
+      const hol=e.customStart+'–'+e.customEnd;
+      if(e.weekdaySame) return hol;
+      const wd=e.weekdayStart&&e.weekdayEnd?e.weekdayStart+'–'+e.weekdayEnd:'（班別預設）';
+      return '平'+wd+' 假'+hol;
+    })()}</td>
     <td style="white-space:nowrap;">
       <button class="btn btn-ghost" style="padding:3px 10px;font-size:.6rem;margin-right:4px;" onclick="openEditEmployee(${e.id})">編輯</button>
       <button class="btn btn-danger" style="padding:3px 10px;font-size:.6rem;" onclick="removeEmployee(${e.id})">移除</button>
@@ -4480,9 +4515,10 @@ const _xlsx=(function(){
       // xf index: 0=base, 1=holiday
       const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="2">
+<fonts count="3">
  <font><sz val="12"/><name val="新細明體"/></font>
  <font><sz val="12"/><name val="新細明體"/></font>
+ <font><sz val="6"/><name val="新細明體"/></font>
 </fonts>
 <fills count="3">
  <fill><patternFill patternType="none"/></fill>
@@ -4494,12 +4530,12 @@ const _xlsx=(function(){
  <border><left style="thin"><color rgb="FF000000"/></left><right style="thin"><color rgb="FF000000"/></right><top style="thin"><color rgb="FF000000"/></top><bottom style="thin"><color rgb="FF000000"/></bottom><diagonal/></border>
 </borders>
 <cellStyleXfs count="1">
- <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 </cellStyleXfs>
 <cellXfs count="3">
  <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;
@@ -4641,9 +4677,10 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
       const _b=(l,r,t,b)=>{const s=(v,n)=>v==='M'?`<${n} style="medium"><color rgb="FF000000"/></${n}>`:`<${n} style="thin"><color rgb="FF000000"/></${n}>`;return `<border>${s(l,'left')}${s(r,'right')}${s(t,'top')}${s(b,'bottom')}<diagonal/></border>`;};
       const stylesXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="2">
+<fonts count="3">
  <font><sz val="12"/><name val="新細明體"/></font>
  <font><sz val="12"/><name val="新細明體"/></font>
+ <font><sz val="6"/><name val="新細明體"/></font>
 </fonts>
 <fills count="4">
  <fill><patternFill patternType="none"/></fill>
@@ -4659,42 +4696,58 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
  ${_b('t','M','t','t')} ${_b('t','M','M','M')} ${_b('t','M','t','M')} ${_b('t','M','M','t')}
 </borders>
 <cellStyleXfs count="1">
- <xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
 </cellStyleXfs>
-<cellXfs count="24">
- <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="1" fillId="2" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="5" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="1" fillId="2" borderId="5" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="6" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="7" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="8" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="9" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="1" fillId="2" borderId="12" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="0" borderId="15" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="3" borderId="5" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
- <xf numFmtId="0" fontId="0" fillId="3" borderId="12" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="middle"/></xf>
+<cellXfs count="28">
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="4" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="5" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="5" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="6" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="7" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="8" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="9" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="10" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="11" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="12" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="1" fillId="2" borderId="12" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="13" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="14" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="15" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="3" borderId="5" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="3" borderId="12" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+ <xf numFmtId="0" fontId="2" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="2" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>
+ <xf numFmtId="0" fontId="0" fillId="0" borderId="3" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" shrinkToFit="1"/></xf>
 </cellXfs>
 <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;;;
       // shared strings across ALL sheets
       const ssMap={},ssArr=[];let ssCount=0;
       function ssi(v){const k=String(v);if(ssMap[k]===undefined){ssMap[k]=ssArr.length;ssArr.push(k);}ssCount++;return ssMap[k];}
+      // xe for shared strings: also convert \n to &#10; for Excel cell line breaks
+      const xeS=s=>xe(s).replace(/\n/g,'&#10;');
       // build each sheet XML
-      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs,cellStyleFn}){
+      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs,cellStyleFn,rowHeightMap}){
         const hSet=new Set(holidayRowIdxs||[]);
+        // 建立合併儲存格的「主儲存格」和「非主儲存格」集合
+        const mergedNonPrimary=new Set();
+        const mergedPrimary=new Set();
+        (merges||[]).forEach(m=>{
+          mergedPrimary.add(`${m.sr},${m.sc}`); // 主儲存格（左上角）1-based
+          for(let r=m.sr;r<=m.er;r++){for(let c=m.sc;c<=m.ec;c++){
+            if(r===m.sr&&c===m.sc)continue; // 主儲存格跳過
+            mergedNonPrimary.add(`${r},${c}`); // 1-based
+          }}
+        });
         let sheetRows='';
         rows.forEach((row,ri)=>{
           const isHol=hSet.has(ri);
@@ -4702,20 +4755,38 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
           row.forEach((val,ci)=>{
             const addr=colName(ci+1)+(ri+1);
             const xf=cellStyleFn?cellStyleFn(ri,ci,isHol):(isHol?2:1);
-            if(typeof val==='number'){cells+=`<c r="${addr}" t="n" s="${xf}"><v>${val}</v></c>`;}
-            else{cells+=`<c r="${addr}" t="s" s="${xf}"><v>${ssi(val===null||val===undefined?'':val)}</v></c>`;}
+            // 合併非主儲存格：只寫樣式，不寫值
+            if(mergedNonPrimary.has(`${ri+1},${ci+1}`)){
+              cells+=`<c r="${addr}" s="${xf}"/>`;
+            } else if(typeof val==='number'){
+              cells+=`<c r="${addr}" t="n" s="${xf}"><v>${val}</v></c>`;
+            } else {
+              // 合併主儲存格用 inlineStr（更可靠的對齊支援）；一般儲存格用 shared string
+              const isMergePrimary=mergedPrimary.has(`${ri+1},${ci+1}`);
+              const sv=val===null||val===undefined?'':String(val);
+              if(isMergePrimary){
+                cells+=`<c r="${addr}" t="inlineStr" s="${xf}"><is><t xml:space="preserve">${xeS(sv)}</t></is></c>`;
+              } else {
+                cells+=`<c r="${addr}" t="s" s="${xf}"><v>${ssi(sv)}</v></c>`;
+              }
+            }
           });
-          sheetRows+=`<row r="${ri+1}">${cells}</row>`;
+          // 指定行高：確保合併儲存格垂直置中正確顯示
+          const rowHeights=rowHeightMap||{};
+          const ht=rowHeights[ri];
+          const rowAttr=ht?` ht="${ht}" customHeight="1"`:'';
+          sheetRows+=`<row r="${ri+1}"${rowAttr}>${cells}</row>`;
         });
         let colsXml='<cols>';
         colWidths.forEach((w,i)=>{colsXml+=`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`;});
         colsXml+='</cols>';
         let mergeXml='';
         if(merges&&merges.length){const enc=m=>`${colName(m.sc)}${m.sr}:${colName(m.ec)}${m.er}`;mergeXml=`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${enc(m)}"/>`).join('')}</mergeCells>`;}
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}</worksheet>`;
+        const sfp='<sheetFormatPr defaultRowHeight="15" customHeight="1"/>';
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${sfp}${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}</worksheet>`;
       }
       const sheetXmls=sheetDefs.map(d=>buildSheetXml(d));
-      const ssXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${ssCount}" uniqueCount="${ssArr.length}">${ssArr.map(s=>`<si><t xml:space="preserve">${xe(s)}</t></si>`).join('')}</sst>`;
+      const ssXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${ssCount}" uniqueCount="${ssArr.length}">${ssArr.map(s=>`<si><t xml:space="preserve">${xeS(s)}</t></si>`).join('')}</sst>`;
       const wbXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetDefs.map((s,i)=>`<sheet name="${xe(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`;
       const wbRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheetDefs.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${sheetDefs.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/><Relationship Id="rId${sheetDefs.length+2}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
       const appRels=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
@@ -4763,10 +4834,57 @@ function exportScheduleExcel(){
     const shiftEmps=shifts.map(sh=>({shift:sh,emps:allEmps.filter(e=>e.dept===sh)})).filter(x=>x.emps.length);
     const totalEmpCols=shiftEmps.reduce((s,x)=>s+x.emps.length,0);
     const statShifts=shiftEmps.map(x=>x.shift);
+    // ── 上班時間輔助 ──
+    // 格式化 HH:MM → HH（去掉分鐘，若整點）
+    const fmtHH=t=>{if(!t)return '';const m=(t+'').match(/^(\d{1,2}):(\d{2})$/);if(!m)return String(t).slice(0,2);return m[1].padStart(2,'0');};
+    // 從班別名稱解析時間（格式：09-19、14-24 等）
+    const parseShiftName=sh=>{const m=sh.match(/^(\d{1,2})-(\d{1,2})$/);if(m)return {start:m[1].padStart(2,'0'),end:m[2].padStart(2,'0')};return null;};
+    // 取得員工欄位的時間標籤：晚班且有個別時間 → 平/假各一行，否則 HH~HH
+    const getEmpTimeLabel=emp=>{
+      const dt=(data.deptTimes||{})[emp.dept]||{};
+      const parsed=parseShiftName(emp.dept);
+      // 班別預設時間
+      let defStart='',defEnd='';
+      if(dt.start&&dt.end){defStart=fmtHH(dt.start);defEnd=fmtHH(dt.end);}
+      else if(parsed){defStart=parsed.start;defEnd=parsed.end;}
+      const hasHoliday=!!(emp.customStart&&emp.customEnd); // 假日個別時間
+      if(!hasHoliday){
+        // 無假日個別時間 → 顯示班別預設（平假相同）
+        return defStart&&defEnd?(defStart+'~'+defEnd):'';
+      }
+      const holStart=fmtHH(emp.customStart);const holEnd=fmtHH(emp.customEnd);
+      const holLabel=holStart+'~'+holEnd;
+      if(emp.weekdaySame){
+        // 平日與假日相同 → 只顯示一行
+        return holLabel;
+      }
+      // 平日：有個別時間則用，否則用班別預設
+      let wdLabel='';
+      if(emp.weekdayStart&&emp.weekdayEnd){
+        wdLabel=fmtHH(emp.weekdayStart)+'~'+fmtHH(emp.weekdayEnd);
+      } else if(defStart&&defEnd){
+        wdLabel=defStart+'~'+defEnd;
+      }
+      if(wdLabel&&wdLabel!==holLabel) return '平'+wdLabel+'\n假'+holLabel;
+      return holLabel;
+    };
+    // 統計欄不顯示時間
     const rows=[];
     const r1=[sheetTitle];for(let i=1;i<totalEmpCols+2+statShifts.length;i++)r1.push('');rows.push(r1);
     const r2=['',''];shiftEmps.forEach(({shift,emps})=>{r2.push(shift);for(let i=1;i<emps.length;i++)r2.push('');});
     r2.push('當日休假人數');for(let i=1;i<statShifts.length;i++)r2.push('');rows.push(r2);
+    // ── 上班時間列（r_time，插在班別與職稱之間）──
+    // 記錄單技師班別的欄位（0-based）：這些欄顯示小字體
+    const singleEmpCols=new Set();
+    let _col2=2; // 0-based，跳過日期(0)和星期(1)
+    shiftEmps.forEach(({emps})=>{
+      if(emps.length===1) singleEmpCols.add(_col2);
+      _col2+=emps.length;
+    });
+    const rTime=['',''];
+    shiftEmps.forEach(({emps})=>emps.forEach(emp=>rTime.push(getEmpTimeLabel(emp))));
+    statShifts.forEach(()=>rTime.push(''));
+    rows.push(rTime);
     const r3=['',''];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r3.push(titleOf(emp))));statShifts.forEach(sh=>r3.push(sh.charAt(0)));rows.push(r3);
     const r4=['','星期'];shiftEmps.forEach(({emps})=>emps.forEach(emp=>r4.push(emp.name)));statShifts.forEach(()=>r4.push(''));rows.push(r4);
     const showLoser=document.getElementById('sch-show-loser')?.checked!==false;
@@ -4776,7 +4894,7 @@ function exportScheduleExcel(){
     dates.forEach((d,di)=>{
       const dt=period.dateTypes||{};
       const dayType=dt[d]||(isWk(d)?'holiday':'weekday');
-      if(dayType==='holiday')holidayRowIdxs.push(4+di);
+      if(dayType==='holiday')holidayRowIdxs.push(5+di);
       const row=[parseInt(d.slice(8)),WD[new Date(d+'T00:00:00').getDay()]];
       const loserRow=[false,false];
       shiftEmps.forEach(({emps})=>emps.forEach(emp=>{
@@ -4813,10 +4931,28 @@ function exportScheduleExcel(){
     merges.push({sr:1,er:1,sc:1,ec:totalEmpCols+2+statShifts.length});
     let col=3;
     shiftEmps.forEach(({emps})=>{if(emps.length>1)merges.push({sr:2,er:2,sc:col,ec:col+emps.length-1});col+=emps.length;});
-    if(statShifts.length>1)merges.push({sr:2,er:2,sc:col,ec:col+statShifts.length-1});
+    // 統計欄：「當日休假人數」標題 + 時間列合併（sr:2→3），跨所有統計欄（若多欄則同時橫向合併）
+    // 注意：不再另外加 sr:2,er:2 的橫向合併，改由 sr:2,er:3 同時處理
+    const statColStart=3+totalEmpCols; // 1-based（跳過日、星期2欄＋所有員工欄）
+    const statColEnd=statColStart+statShifts.length-1;
+    merges.push({sr:2,er:3,sc:statColStart,ec:statColEnd}); // 當日休假人數 + 時間row，縱橫合併
+    // ── 上班時間列合併：員工欄中相鄰時間標籤相同則合併（不包含統計欄）──
+    (()=>{
+      // timeLabels 僅含員工欄（長度 = totalEmpCols），統計欄已由上方 merge 處理
+      const timeLabels=rTime.slice(2,2+totalEmpCols);
+      let si2=0;
+      while(si2<timeLabels.length){
+        let ei2=si2;
+        while(ei2+1<timeLabels.length&&timeLabels[ei2+1]===timeLabels[si2])ei2++;
+        if(ei2>si2&&timeLabels[si2]!==''){
+          merges.push({sr:3,er:3,sc:si2+3,ec:ei2+3}); // +3: skip日(col1)星期(col2)→1-based
+        }
+        si2=ei2+1;
+      }
+    })();
     // Build column type array for border logic
     const nDatesEmp=dates.length;
-    const nameHdrIdx=3,dataStartIdx=4,emptyRowIdx=4+nDatesEmp,fnIdx=4+nDatesEmp+1,ftIdx=4+nDatesEmp+2;
+    const timeRowIdx=2,nameHdrIdx=3,dataStartIdx=5,emptyRowIdx=5+nDatesEmp,fnIdx=5+nDatesEmp+1,ftIdx=5+nDatesEmp+2;
     const colTypesEmp=['ab','ab'];
     shiftEmps.forEach(({emps})=>emps.forEach((e,i)=>colTypesEmp.push(emps.length===1?'only':i===0?'first':i===emps.length-1?'last':'mid')));
     statShifts.forEach((s,i)=>colTypesEmp.push(statShifts.length===1?'only':i===0?'first':i===statShifts.length-1?'last':'mid'));
@@ -4827,17 +4963,28 @@ function exportScheduleExcel(){
       const ct=colTypesEmp[ci]||'mid';
       const isAB=ct==='ab'||ct==='only';const isF=ct==='first';const isM=ct==='mid';const isL=ct==='last';
       const isLoser=ri>=dataStartIdx&&ri<emptyRowIdx&&loserCells[ri-dataStartIdx]?.[ci];
-      if(ri===nameHdrIdx){if(isAB)return 5;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
+      // ── 前四列（ri=0標題/ri=1班別/ri=2時間/ri=3職稱）與最後兩列（fnIdx/ftIdx）：全粗框 ──
+      const statStart=2+totalEmpCols;
+      if(ri===0||ri===1||ri===nameHdrIdx||ri===fnIdx||ri===ftIdx) return 5;
+      // 統計欄時間列也用 xf=5（合併區）
+      if(ri===timeRowIdx&&ci>=statStart) return 5;
+      // 上班時間列（ri=2）：ab欄也用粗框，員工欄依人數決定字體
+      if(ri===timeRowIdx){
+        if(ci<2)return 5; // 日/星期欄：前四列全粗框
+        return ct==='only'?25:24;
+      }
+      // 姓名列（ri=4，dataStartIdx-1）：全粗框
+      if(ri===dataStartIdx-1) return 5;
       if(ri>=dataStartIdx&&ri<emptyRowIdx){
         if(isLoser){if(isAB)return 21;if(isF)return 22;if(isM)return 20;if(isL)return 23;}
         if(isAB)return isHol?4:3;if(isF)return isHol?8:7;if(isM)return isHol?2:1;if(isL)return isHol?16:15;
       }
       if(ri===emptyRowIdx){if(isAB)return 3;if(isF)return 10;if(isM)return 13;if(isL)return 18;}
-      if(ri===fnIdx){if(isAB)return 3;if(isF)return 11;if(isM)return 14;if(isL)return 19;}
-      if(ri===ftIdx){if(isAB)return 6;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
       if(isAB)return 3;if(isF)return 7;if(isM)return 1;if(isL)return 15;return 1;
     }
-    return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:empCellStyleFn};
+    // ri=2 時間列：設定行高讓兩行文字（平/假）完整顯示（約 30pt）
+    const empRowHeightMap={2:30};
+    return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:empCellStyleFn,rowHeightMap:empRowHeightMap};
   }
 
   // ── 櫃檶＋清潔工作表 ──
@@ -4930,11 +5077,12 @@ function exportScheduleExcel(){
     function ctrCellStyleFn(ri,ci,isHol){
       const ct=colTypesCtr[ci]||'mid';
       const isAB=ct==='ab'||ct==='only';const isF=ct==='first';const isM=ct==='mid';const isL=ct==='last';
-      if(ri===ctrNameHdrIdx){if(isAB)return 5;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
+      // ── 前三列（ri=0標題/ri=1班別/ri=2姓名）與最後兩列（ctrFnIdx/ctrFtIdx）：全粗框 ──
+      if(ri===0||ri===ctrNameHdrIdx||ri===ctrFnIdx||ri===ctrFtIdx) return 5;
+      // 班別標題列（ri=1）：全粗框 + shrinkToFit（文字超出自動縮小）
+      if(ri===1) return 27; // MMMM全粗框 + shrinkToFit
       if(ri>=ctrDataStart&&ri<ctrEmptyIdx){if(isAB)return isHol?4:3;if(isF)return isHol?8:7;if(isM)return isHol?2:1;if(isL)return isHol?16:15;}
       if(ri===ctrEmptyIdx){if(isAB)return 3;if(isF)return 10;if(isM)return 13;if(isL)return 18;}
-      if(ri===ctrFnIdx){if(isAB)return 3;if(isF)return 11;if(isM)return 14;if(isL)return 19;}
-      if(ri===ctrFtIdx){if(isAB)return 6;if(isF)return 9;if(isM)return 12;if(isL)return 17;}
       if(isAB)return 3;if(isF)return 7;if(isM)return 1;if(isL)return 15;return 1;
     }
     return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:ctrCellStyleFn};
