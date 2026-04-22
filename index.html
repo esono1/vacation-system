@@ -3086,20 +3086,21 @@ function addProxyExtraLeave(){
   // 特休假：檢查當天未出勤人數是否已達上限
   if(isAnnual&&p){
     const gender=emp.gender||'male';
+    const _annSM=buildStatusMap(p);
     const overDates=dates.filter(d=>{
-      const lim=getLim(p,emp.dept,d,gender);
-      if(lim<=0)return false; // 不開放的日期不允許
-      const statusMap=buildStatusMap(p);
-      // 計算當天已休假人數（抽籤錄取/直接錄取/生日假/其他特休）
-      const shEmps=data.employees.filter(e=>e.dept===emp.dept&&(e.gender||'male')===gender);
-      const alreadyOff=shEmps.filter(e=>{
-        const st=(statusMap[e.id]||{})[d];
+      // 該職稱（性別）當日所有班別上限加總
+      const totalLim=data.departments.reduce((s,sh)=>s+getLim(p,sh,d,gender),0);
+      if(totalLim<=0)return false; // 全部班別都不開放
+      // 該職稱（性別）所有員工中已休假人數
+      const allGenderEmps=data.employees.filter(e=>(e.gender||'male')===gender);
+      const alreadyOff=allGenderEmps.filter(e=>{
+        const st=(_annSM[e.id]||{})[d];
         return ['lottery','direct','birthday','annual'].includes(st);
       }).length;
-      return alreadyOff>=lim;
+      return alreadyOff>=totalLim;
     });
     if(overDates.length){
-      return toast(`以下日期已達未出勤上限，無法申請特休：${overDates.map(fd).join('、')}`,true);
+      return toast(`以下日期已達該職稱未出勤上限，無法申請特休：${overDates.map(fd).join('、')}`,true);
     }
   }
   let added=0,skipped=0;
