@@ -4756,7 +4756,7 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
       // xe for shared strings: also convert \n to &#10; for Excel cell line breaks
       const xeS=s=>xe(s).replace(/\n/g,'&#10;');
       // build each sheet XML
-      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs,cellStyleFn,rowHeightMap}){
+      function buildSheetXml({rows,merges,colWidths,holidayRowIdxs,cellStyleFn,rowHeightMap,printScale}){
         const hSet=new Set(holidayRowIdxs||[]);
         // 建立合併儲存格的「主儲存格」和「非主儲存格」集合
         const mergedNonPrimary=new Set();
@@ -4803,9 +4803,13 @@ ${sheetDefs.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" Cont
         let mergeXml='';
         if(merges&&merges.length){const enc=m=>`${colName(m.sc)}${m.sr}:${colName(m.ec)}${m.er}`;mergeXml=`<mergeCells count="${merges.length}">${merges.map(m=>`<mergeCell ref="${enc(m)}"/>`).join('')}</mergeCells>`;}
         const sfp='<sheetFormatPr defaultRowHeight="15" customHeight="1"/>';
-        const _sheetPr='<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>';
-        const _printXml='<printOptions horizontalCentered="1" verticalCentered="0"/><pageSetup paperSize="9" orientation="portrait" fitToWidth="1" fitToHeight="0" usePrinterDefaults="0"/>';
-        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${_sheetPr}${sfp}${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}${_printXml}</worksheet>`;
+        // 自訂縮放比例列印（從100%往上找最佳值）
+        const _scale=printScale||100;
+        const _sheetPr='<sheetPr/>';
+        const _margins='<pageMargins left="0.25" right="0.25" top="0.25" bottom="0.25" header="0.3" footer="0.3"/>';
+        const _pageSetup=`<pageSetup paperSize="9" orientation="portrait" scale="${_scale}"/>`;
+        const _printOpts='<printOptions horizontalCentered="1"/>';
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">${_sheetPr}${sfp}${colsXml}<sheetData>${sheetRows}</sheetData>${mergeXml}${_printOpts}${_margins}${_pageSetup}</worksheet>`;
       }
       const sheetXmls=sheetDefs.map(d=>buildSheetXml(d));
       const ssXml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${ssCount}" uniqueCount="${ssArr.length}">${ssArr.map(s=>`<si><t xml:space="preserve">${xeS(s)}</t></si>`).join('')}</sst>`;
@@ -5110,12 +5114,47 @@ function exportScheduleExcel(){
     return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:ctrCellStyleFn};
   }
 
+  // ── 計算最佳列印縮放比例 ──
+  // A4直向窄邊界可列印寬度：8.27 - 0.25*2 = 7.77 英吋
+  // A4直向窄邊界可列印高度：11.69 - 0.25*2 = 11.19 英吋（含頁首頁尾0.3英吋各）
+  // Excel欄寬單位 → 英吋：1字元寬 ≈ 0.1089 英吋（新細明體12pt約9.57px，96dpi）
+  // 列高單位 pt → 英吋：1pt = 1/72 英吋，預設列高15pt
+  function calcBestScale(colWidths, rowCount, rowHeightMap){
+    // Excel欄寬換算為英吋：
+    // 新細明體12pt的MaxDigitWidth約8px(96dpi)，欄寬公式：(chars*8+5)/96 inches
+    const colToInch=w=>(w*8+5)/96;
+    const PT_TO_INCH=1/72;
+    const DEF_ROW_H=15; // pt
+    // A4窄邊界（左右各0.25英吋）可列印寬：8.27-0.5=7.77英吋
+    // A4窄邊界（上下各0.25，頁首頁尾各0.3英吋）可列印高：11.69-0.5-0.6=10.59英吋
+    const PAGE_W=7.77;
+    const PAGE_H=10.59;
+    const totalW=colWidths.reduce((s,w)=>s+colToInch(w),0);
+    let totalH=0;
+    for(let ri=0;ri<rowCount;ri++){
+      const ht=(rowHeightMap&&rowHeightMap[ri])?rowHeightMap[ri]:DEF_ROW_H;
+      totalH+=ht*PT_TO_INCH;
+    }
+    // 從100%往上，每次+5%，找到不超出A4的最大縮放比
+    let best=100;
+    for(let s=105;s<=300;s+=5){
+      const sc=s/100;
+      if(totalW*sc>PAGE_W||totalH*sc>PAGE_H) break;
+      best=s;
+    }
+    return best;
+  }
+  const _empM=buildEmpSheet('male',`${rocMStr}${storeLabel} 足底技師休假表`);
+  const _empF=buildEmpSheet('female',`${rocMStr}${storeLabel} 身體技師休假表`);
   const sheetDefs=[
-    {name:'足師',...buildEmpSheet('male',`${rocMStr}${storeLabel} 足底技師休假表`)},
-    {name:'體師',...buildEmpSheet('female',`${rocMStr}${storeLabel} 身體技師休假表`)},
+    {name:'足師',..._empM,printScale:calcBestScale(_empM.colWidths,_empM.rows.length,_empM.rowHeightMap)},
+    {name:'體師',..._empF,printScale:calcBestScale(_empF.colWidths,_empF.rows.length,_empF.rowHeightMap)},
   ];
   const counterSheet=buildCounterSheet();
-  if(counterSheet)sheetDefs.push({name:'櫃檶',...counterSheet});
+  if(counterSheet){
+    const _ctrScale=calcBestScale(counterSheet.colWidths,counterSheet.rows.length,counterSheet.rowHeightMap);
+    sheetDefs.push({name:'櫃檶',...counterSheet,printScale:_ctrScale});
+  }
 
   const buf=_xlsx.writeSheets(sheetDefs);
   const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
