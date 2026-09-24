@@ -77,5 +77,21 @@ run('負責人改管理員帳號', 'admin_a1', d => { d.admins[1].role = '主管
 run('主管一次刪 12 筆', 'admin_a3', d => { for (let i = 0; i < 12; i++) base.applications.push({ id: 'x' + i, periodId: 100, empId: 1, dates: ['2026-10-0' + (i % 9 + 1)] }); d.applications = []; }, true);
 base.applications = base.applications.slice(0, 2);
 run('超級管理員任意修改', 'super', d => { d.applications = []; d.monthlyQuota = 1; }, false);
+console.log('── 伺服器／專案管理權限的寫入');
+{
+  const { judgeServer } = require(path.join(FN, 'audit.js'))._test;
+  const check = (name, mutate, restore, expectSuspicious) => {
+    const b = clone(base), a = clone(base);
+    b.admins[0].password = 'plain'; b.employees[0].pin = '12'; // 舊格式：密碼還在資料裡
+    Object.assign(a, clone(b)); mutate(a);
+    const r = judgeServer(diffData(b, a), restore);
+    const ok = (r.reasons.length > 0) === expectSuspicious; if (!ok) fail++;
+    console.log(`${ok ? '✅' : '❌'} ${expectSuspicious ? '[應可疑]' : '[應正常]'} ${name} → ${r.who}`);
+  };
+  check('舊資料密碼搬移（只移除 password/pin）', a => { delete a.admins[0].password; delete a.employees[0].pin; }, false, false);
+  check('還原備份（2 分鐘內有還原前備份）', a => { a.applications = []; }, true, false);
+  check('搬移時順便改了別的欄位', a => { delete a.admins[0].password; a.admins[0].role = '主管'; }, false, true);
+  check('沒有還原、也不是搬移的直接修改', a => { a.monthlyQuota = 99; }, false, true);
+}
 console.log(fail ? `\n${fail} 項失敗` : '\n全部通過');
 process.exit(fail ? 1 : 0);

@@ -258,9 +258,12 @@ function describe(changes, ctx) {
 }
 
 // ══ 誰改的 ══
+// 不是網頁登入者（app_user）的寫入：伺服器程式（Admin SDK，Google 回報為 unknown）或有 Google Cloud 專案權限的帳號
+const SERVER_AUTH = new Set(['service_account', 'unknown', 'system', 'admin', 'api_key']);
 function identify(event, ctx) {
   const uid = event.authId || '';
-  if (event.authType === 'service_account') return { uid, role: 'system', who: '系統（伺服器）' };
+  if (SERVER_AUTH.has(event.authType || 'unknown') && !uid.match(/^(super|admin_|emp_)/))
+    return { uid: uid || 'server', role: 'system', who: '系統／專案管理權限' };
   if (uid === 'super') return { uid, role: 'superadmin', who: '超級管理員' };
   if (uid.startsWith('admin_')) {
     const a = ctx.adm[uid.slice(6)];
@@ -274,6 +277,20 @@ function identify(event, ctx) {
 }
 
 // ══ 可疑判斷 ══
+// 伺服器的合法寫入只有兩種：舊資料密碼搬移（只移除 password／pin 欄位）、超級管理員還原備份
+function isPasswordScrub(changes) {
+  return changes.length > 0 && changes.every(c => (c.field === 'admins' || c.field === 'employees') &&
+    !c.added.length && !c.removed.length && c.changed.every(x => {
+      const keys = Object.keys({ ...x.before, ...x.after }).filter(k => J(x.before[k]) !== J(x.after[k]));
+      return keys.length && keys.every(k => (k === 'password' || k === 'pin') && x.after[k] === undefined);
+    }));
+}
+function judgeServer(changes, recentRestore) {
+  if (isPasswordScrub(changes)) return { who: '系統：舊資料密碼搬移', reasons: [] };
+  if (recentRestore) return { who: '系統：超級管理員還原備份', reasons: [] };
+  return { who: '系統／專案管理權限', reasons: ['有人使用 Google Cloud 專案權限直接修改了資料（不是透過網頁）。只有專案擁有者的 Google 帳號或伺服器能做到，請確認是不是你本人'] };
+}
+
 function judge(me, changes, ctx, before, after) {
   const reasons = [];
   if (me.role === 'superadmin' || me.role === 'system') return reasons;
@@ -310,7 +327,15 @@ exports.auditDataWrite = onDocumentWrittenWithAuthContext('system/data', async e
   const ctx = makeCtx(before, after);
   const me = identify(event, ctx);
   const lines = describe(changes, ctx);
-  const reasons = judge(me, changes, ctx, before, after);
+  let reasons = judge(me, changes, ctx, before, after);
+  if (me.role === 'system') {
+    // 還原備份前一定會先建立「還原前」備份；2 分鐘內有的話就是還原
+    const since = twNow(); since.setUTCMinutes(since.getUTCMinutes() - 2);
+    const sinceId = since.toISOString().slice(0, 19).replace(/[-:T]/g, '');
+    const recent = await db.collection('backups').where(admin.firestore.FieldPath.documentId(), '>=', sinceId).get();
+    const s = judgeServer(changes, recent.docs.some(d => d.id.endsWith('_before-restore')));
+    me.who = s.who; reasons = s.reasons;
+  }
   const rec = { ts: Date.now(), at: twStamp(), uid: me.uid, who: me.who, role: me.role, lines, suspicious: reasons.length > 0, reasons };
   await db.collection('audit').add(rec);
   if (!reasons.length) return;
@@ -348,7 +373,7 @@ exports.listLogins = publicCall(async req => {
   return snap.docs.map(d => d.data());
 });
 
-exports._test = { diffData, describe, judge, makeCtx, identify, normalize }; // 離線測試用
+exports._test = { diffData, describe, judge, makeCtx, identify, normalize, judgeServer }; // 離線測試用
 
 // ══ 清掉 90 天前的紀錄（每日備份時呼叫）══
 exports.pruneOld = async () => {

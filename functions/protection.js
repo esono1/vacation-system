@@ -104,7 +104,8 @@ async function warnHour(ref, hour, total) {
 
 // 所有對外（網頁可呼叫）的功能都用這個包起來：先計數，再執行
 function publicCall(handler) {
-  return onCall({ secrets: [GMAIL_APP_PASSWORD] }, async req => {
+  // invoker: 'public' 讓網頁能呼叫（身分驗證由功能本身處理）；明寫出來，避免部署失敗重試時漏掉
+  return onCall({ secrets: [GMAIL_APP_PASSWORD], invoker: 'public' }, async req => {
     await countCall();
     return handler(req);
   });
