@@ -190,6 +190,45 @@ exports.setupSuper = publicCall(async req => {
   return { ok: true };
 });
 
+// ══ 超級管理員的信任裝置：陌生裝置要用寄到信箱的驗證碼確認 ══
+// superDevices/<id>      {tokenHash, name, ip, createdAt, lastUsedAt}（網頁存 id＋token 在 localStorage）
+// superChallenge/current {codeHash, expires, tries, sentAt, ip, ua}
+const DEVICES = db.collection('superDevices');
+const CHALLENGE = db.doc('superChallenge/current');
+const sha = s => crypto.createHash('sha256').update(String(s)).digest('hex');
+const reqIp = req => String(((req.rawRequest || {}).headers || {})['x-forwarded-for'] || (req.rawRequest || {}).ip || '').split(',')[0].trim();
+function uaName(req) {
+  const ua = String(((req.rawRequest || {}).headers || {})['user-agent'] || '');
+  const os = /iPhone|iPad/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'Mac' : '其他系統';
+  const br = /Edg\//.test(ua) ? 'Edge' : /Line\//.test(ua) ? 'LINE' : /Chrome\//.test(ua) ? 'Chrome' : /Safari\//.test(ua) ? 'Safari' : /Firefox\//.test(ua) ? 'Firefox' : '其他瀏覽器';
+  return `${os}・${br}`;
+}
+async function trustedDevice(req) {
+  const { deviceId, deviceToken } = req.data || {};
+  if (!deviceId || !deviceToken || typeof deviceId !== 'string' || deviceId.length > 64) return null;
+  const ref = DEVICES.doc(deviceId);
+  const s = await ref.get();
+  if (!s.exists || s.data().tokenHash !== sha(deviceToken)) return null;
+  await ref.update({ lastUsedAt: protection.helpers.twStamp(), ip: reqIp(req) });
+  return deviceId;
+}
+async function sendDeviceCode(req) {
+  const prev = await CHALLENGE.get();
+  if (prev.exists && Date.now() - (prev.data().sentAt || 0) < 60000) return; // 同一分鐘只寄一封
+  const code = String(crypto.randomInt(0, 1000000)).padStart(6, '0');
+  await CHALLENGE.set({ codeHash: sha(code), expires: Date.now() + 10 * 60000, tries: 0, sentAt: Date.now(), ip: reqIp(req), ua: uaName(req) });
+  await protection.helpers.sendMailNow(`🔐 假期抽籤系統：超級管理員陌生裝置登入驗證碼 ${code}`,
+    `有裝置正在登入超級管理員：\n時間：${protection.helpers.twStamp()}\nIP：${reqIp(req)}\n裝置：${uaName(req)}\n\n` +
+    `驗證碼：${code}（10 分鐘內有效）\n\n如果不是你本人在登入，代表你的超級管理員密碼可能已外洩，請盡快登入後修改密碼。`);
+}
+async function newDevice(req) {
+  const deviceId = crypto.randomBytes(16).toString('hex');
+  const deviceToken = crypto.randomBytes(32).toString('hex');
+  const now = protection.helpers.twStamp();
+  await DEVICES.doc(deviceId).set({ tokenHash: sha(deviceToken), name: uaName(req), ip: reqIp(req), createdAt: now, lastUsedAt: now });
+  return { deviceId, deviceToken };
+}
+
 // ══ 管理員登入（含超級管理員）══
 exports.adminLogin = publicCall(async req => {
   const { username, password } = req.data || {};
@@ -202,6 +241,12 @@ exports.adminLogin = publicCall(async req => {
   const sup = await cred('super').get();
   if (sup.exists && sup.data().username === username && await verifyPw(password, sup.data().hash)) {
     await clearFails(key);
+    // 陌生裝置：密碼正確也不發通行證，先寄驗證碼到信箱
+    if (!(await trustedDevice(req))) {
+      await sendDeviceCode(req);
+      await logLogin(req, { kind: 'superadmin', who: `${username}（超級管理員）`, ok: false, reason: '陌生裝置，已寄驗證碼' });
+      return { needDeviceVerify: true };
+    }
     await logLogin(req, { kind: 'superadmin', who: `${username}（超級管理員）`, ok: true });
     return { token: await issueToken('super', { role: 'superadmin' }), role: 'superadmin', username,
       locked: !!lock.locked, lockReason: lock.reason || '' };
@@ -218,6 +263,81 @@ exports.adminLogin = publicCall(async req => {
   await recordFail(key);
   await logLogin(req, { kind: 'admin', who: username, ok: false, reason: a ? '密碼錯誤' : '帳號不存在' });
   throw new HttpsError('permission-denied', '帳號或密碼錯誤');
+});
+
+// ══ 超級管理員：輸入信箱驗證碼，信任這台裝置並登入 ══
+exports.verifySuperDevice = publicCall(async req => {
+  const { username, password, code } = req.data || {};
+  const key = attemptKey(`admin:${username}`);
+  await checkLock(key);
+  const sup = await cred('super').get();
+  if (!sup.exists || sup.data().username !== username || !(await verifyPw(password, sup.data().hash))) {
+    await recordFail(key);
+    throw new HttpsError('permission-denied', '帳號或密碼錯誤');
+  }
+  const result = await db.runTransaction(async tx => {
+    const s = await tx.get(CHALLENGE);
+    if (!s.exists) return '驗證碼不存在，請重新登入取得新的驗證碼';
+    const c = s.data();
+    if (Date.now() > c.expires) { tx.delete(CHALLENGE); return '驗證碼已過期，請重新登入取得新的驗證碼'; }
+    if (c.tries >= 5) { tx.delete(CHALLENGE); return '驗證碼錯誤次數過多，請重新登入取得新的驗證碼'; }
+    if (sha(String(code || '').trim()) !== c.codeHash) { tx.update(CHALLENGE, { tries: c.tries + 1 }); return `驗證碼錯誤（還可以再試 ${4 - c.tries} 次）`; }
+    tx.delete(CHALLENGE);
+    return null;
+  });
+  if (result) {
+    await logLogin(req, { kind: 'superadmin', who: `${username}（超級管理員）`, ok: false, reason: '裝置驗證碼錯誤' });
+    throw new HttpsError('permission-denied', result);
+  }
+  await clearFails(key);
+  const dev = await newDevice(req);
+  await logLogin(req, { kind: 'superadmin', who: `${username}（超級管理員）`, ok: true, reason: `新裝置已驗證：${uaName(req)}` });
+  const lock = await getLock();
+  return { token: await issueToken('super', { role: 'superadmin' }), role: 'superadmin', username, ...dev,
+    locked: !!lock.locked, lockReason: lock.reason || '' };
+});
+
+// ══ 超級管理員：信任裝置清單／移除 ══
+exports.listSuperDevices = publicCall(async req => {
+  protection.helpers.requireSuper(req);
+  const snap = await DEVICES.get();
+  return snap.docs.map(d => { const { tokenHash, ...rest } = d.data(); return { id: d.id, ...rest }; })
+    .sort((a, b) => String(b.lastUsedAt).localeCompare(String(a.lastUsedAt)));
+});
+exports.removeSuperDevice = publicCall(async req => {
+  protection.helpers.requireSuper(req);
+  const { deviceId, all } = req.data || {};
+  if (all) { const snap = await DEVICES.get(); await Promise.all(snap.docs.map(d => d.ref.delete())); }
+  else if (typeof deviceId === 'string') await DEVICES.doc(deviceId).delete();
+  return { ok: true };
+});
+
+// ══ 超級管理員：修改密碼（要輸入目前密碼；改完移除其他信任裝置並寄信通知）══
+exports.changeSuperPassword = publicCall(async req => {
+  protection.helpers.requireSuper(req);
+  const { oldPassword, newPassword, deviceId } = req.data || {};
+  if (typeof newPassword !== 'string' || newPassword.length < 8) throw new HttpsError('invalid-argument', '新密碼至少需要 8 個字元');
+  if (newPassword.length > 100) throw new HttpsError('invalid-argument', '密碼太長');
+  const sup = await cred('super').get();
+  const { username, hash } = sup.data();
+  const key = attemptKey(`admin:${username}`);
+  await checkLock(key);
+  if (!(await verifyPw(oldPassword, hash))) {
+    await recordFail(key);
+    throw new HttpsError('permission-denied', '目前密碼錯誤');
+  }
+  if (await verifyPw(newPassword, hash)) throw new HttpsError('invalid-argument', '新密碼不能跟目前密碼相同');
+  await cred('super').set({ username, hash: await hashPw(newPassword), changedAt: protection.helpers.twStamp() });
+  await clearFails(key);
+  const others = (await DEVICES.get()).docs.filter(d => d.id !== deviceId);
+  await Promise.all(others.map(d => d.ref.delete()));
+  await admin.auth().revokeRefreshTokens('super').catch(() => {});
+  await logLogin(req, { kind: 'superadmin', who: `${username}（超級管理員）`, ok: true, reason: '修改密碼' });
+  await protection.helpers.sendMailNow('🔑 假期抽籤系統：超級管理員密碼已變更',
+    `超級管理員密碼已在 ${protection.helpers.twStamp()} 變更。\nIP：${reqIp(req)}\n裝置：${uaName(req)}\n` +
+    `已移除其他 ${others.length} 台信任裝置，其他裝置下次登入需要重新用信箱驗證碼確認。\n\n` +
+    `如果不是你本人修改的，請立即到 Firebase 主控台 → Firestore → creds 集合刪除 super 文件，重新設定超級管理員。`);
+  return { ok: true, removedDevices: others.length };
 });
 
 // ══ 員工登入 ══

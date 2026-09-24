@@ -1200,6 +1200,14 @@ tr:hover td{background:rgba(255,255,255,.018);}
         </div>
         <div class="card" style="margin-top:16px;">
           <div class="flex-between" style="margin-bottom:10px;">
+            <div class="section-title" style="margin:0;">超級管理員安全</div>
+            <button class="btn btn-primary" onclick="changeSuperPassword()">修改密碼</button>
+          </div>
+          <div style="font-size:.72rem;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">超級管理員在沒驗證過的裝置登入時，需要輸入寄到管理信箱的驗證碼。以下是已信任的裝置，不認得的請移除。修改密碼時會自動移除本裝置以外的所有裝置。</div>
+          <div id="super-device-list" style="font-size:.76rem;">載入中…</div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="flex-between" style="margin-bottom:10px;">
             <div class="section-title" style="margin:0;">操作紀錄</div>
             <label style="font-size:.74rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
               <input type="checkbox" id="audit-suspicious-only" onchange="renderAuditLog()"> 只看可疑
@@ -1803,6 +1811,44 @@ async function loginAsEmployee(){
 }
 
 let _loginBusy=false;
+
+// ══ 超級管理員信任裝置（裝置憑證存在這個瀏覽器；清除瀏覽器資料就要重新驗證）══
+function _superDevice(){
+  try{ const d=JSON.parse(localStorage.getItem('vac_super_device')||'null'); return d&&d.deviceId?d:{}; }catch(e){ return {}; }
+}
+function _saveSuperDevice(deviceId,deviceToken){
+  try{ localStorage.setItem('vac_super_device',JSON.stringify({deviceId,deviceToken})); }catch(e){}
+}
+// 輸入信箱驗證碼的視窗；驗證成功回傳登入結果，取消回傳 null
+function _promptDeviceCode(user,pw){
+  return new Promise(resolve=>{
+    const ov=document.createElement('div');
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;';
+    ov.innerHTML=`<div class="card" style="width:100%;max-width:380px;">
+      <div class="section-title">🔐 陌生裝置驗證</div>
+      <div style="font-size:.8rem;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">這台裝置第一次登入超級管理員。驗證碼已寄到管理信箱，10 分鐘內有效。驗證後這台裝置會被記住。</div>
+      <input type="text" id="dev-code" inputmode="numeric" maxlength="6" placeholder="6 位數驗證碼" style="width:100%;margin-bottom:8px;font-size:1.1rem;letter-spacing:.3em;text-align:center;">
+      <div id="dev-code-err" style="display:none;font-size:.76rem;color:var(--red);margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-primary" id="dev-code-ok" style="flex:1;">驗證並登入</button>
+        <button class="btn btn-ghost" id="dev-code-cancel">取消</button>
+      </div></div>`;
+    document.body.appendChild(ov);
+    const inp=ov.querySelector('#dev-code'), err=ov.querySelector('#dev-code-err'), ok=ov.querySelector('#dev-code-ok');
+    const done=v=>{ ov.remove(); resolve(v); };
+    const submit=async()=>{
+      const code=inp.value.trim();
+      if(!/^\d{6}$/.test(code)){ err.textContent='請輸入 6 位數驗證碼'; err.style.display='block'; return; }
+      ok.disabled=true; ok.textContent='驗證中…';
+      try{ done(await callFn('verifySuperDevice',{username:user,password:pw,code})); }
+      catch(e){ err.textContent=fnErrMsg(e); err.style.display='block'; ok.disabled=false; ok.textContent='驗證並登入'; inp.select(); }
+    };
+    ok.onclick=submit;
+    inp.onkeydown=e=>{ if(e.key==='Enter') submit(); };
+    ov.querySelector('#dev-code-cancel').onclick=()=>done(null);
+    setTimeout(()=>inp.focus(),50);
+  });
+}
 async function _cloudLoginEmployee(eid,emp,errEl){
   const setup=!_empHasPin(emp);
   let payload;
@@ -1889,7 +1935,15 @@ async function loginAsAdmin(){
     if(_loginBusy) return;
     _loginBusy=true; showLoading('登入中…');
     try{
-      const r=await callFn('adminLogin',{username:user,password:pw});
+      let r=await callFn('adminLogin',{username:user,password:pw,..._superDevice()});
+      if(r.needDeviceVerify){
+        // 超級管理員在陌生裝置登入：輸入寄到信箱的驗證碼
+        hideLoading();
+        r=await _promptDeviceCode(user,pw);
+        if(!r){ errEl.textContent='已取消登入'; errEl.style.display='block'; return; }
+        _saveSuperDevice(r.deviceId,r.deviceToken);
+        showLoading('登入中…');
+      }
       await _cloudSignIn(r.token);
       role=r.role;
       _cloudSuper=role==='superadmin'?{username:user}:null;
@@ -7003,7 +7057,65 @@ async function renderProtection(){
         </div>
       </div>`).join(''):'<div style="color:var(--text-dim);">尚無備份</div>';
   }catch(e){ list.textContent='讀取失敗：'+fnErrMsg(e); }
-  renderAuditLog(); renderLoginLog();
+  renderSuperDevices(); renderAuditLog(); renderLoginLog();
+}
+async function renderSuperDevices(){
+  const el=document.getElementById('super-device-list');
+  try{
+    const mine=_superDevice().deviceId;
+    const rows=await callFn('listSuperDevices');
+    el.innerHTML=rows.length?rows.map(d=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <span style="font-weight:600;">${_esc(d.name)}</span>
+        ${d.id===mine?'<span class="badge b-gray" style="font-size:.6rem;">本裝置</span>':''}
+        <span style="color:var(--text-dim);">最後使用 ${_esc(d.lastUsedAt)}・IP ${_esc(d.ip)}</span>
+        <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;margin-left:auto;" onclick="removeSuperDevice('${_esc(d.id)}',${d.id===mine})">移除</button>
+      </div>`).join('')+`<div style="margin-top:10px;"><button class="btn btn-ghost" style="font-size:.66rem;" onclick="removeSuperDevice(null,true)">全部移除（包含本裝置）</button></div>`
+      :'<div style="color:var(--text-dim);">沒有信任裝置</div>';
+  }catch(e){ el.textContent='讀取失敗：'+fnErrMsg(e); }
+}
+function removeSuperDevice(id,isMine){
+  const all=!id;
+  showModal(all?'移除全部信任裝置':'移除信任裝置',
+    (all||isMine)?'移除後，這台裝置下次登入超級管理員也需要重新輸入信箱驗證碼。確定嗎？':'移除後，這台裝置下次登入超級管理員需要重新輸入信箱驗證碼。確定嗎？',
+    async()=>{
+      try{ await callFn('removeSuperDevice',all?{all:true}:{deviceId:id}); toast('✓ 已移除'); }
+      catch(e){ toast('❌ '+fnErrMsg(e),true); }
+      renderSuperDevices();
+    });
+}
+function changeSuperPassword(){
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.innerHTML=`<div class="card" style="width:100%;max-width:380px;">
+    <div class="section-title">修改超級管理員密碼</div>
+    <div class="field"><label>目前密碼</label><input type="password" id="sp-old" style="width:100%;"></div>
+    <div class="field"><label>新密碼（至少 8 個字元）</label><input type="password" id="sp-new" style="width:100%;"></div>
+    <div class="field"><label>確認新密碼</label><input type="password" id="sp-new2" style="width:100%;"></div>
+    <div id="sp-err" style="display:none;font-size:.76rem;color:var(--red);margin-bottom:8px;"></div>
+    <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:10px;">修改後會寄信通知，並移除本裝置以外的所有信任裝置。</div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="sp-ok" style="flex:1;">確認修改</button>
+      <button class="btn btn-ghost" id="sp-cancel">取消</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const $=id=>ov.querySelector('#'+id), err=$('sp-err');
+  const fail=m=>{ err.textContent=m; err.style.display='block'; };
+  $('sp-cancel').onclick=()=>ov.remove();
+  $('sp-ok').onclick=async()=>{
+    const o=$('sp-old').value, n=$('sp-new').value, n2=$('sp-new2').value;
+    if(!o) return fail('請輸入目前密碼');
+    if(n.length<8) return fail('新密碼至少需要 8 個字元');
+    if(n!==n2) return fail('兩次輸入的新密碼不一致');
+    $('sp-ok').disabled=true;
+    try{
+      const r=await callFn('changeSuperPassword',{oldPassword:o,newPassword:n,deviceId:_superDevice().deviceId});
+      // 改密碼會讓所有登入中的超級管理員失效（包含這裡），所以直接登出；本裝置仍是信任裝置，不用再輸入驗證碼
+      ov.remove(); toast(`✓ 密碼已修改${r.removedDevices?`，已移除其他 ${r.removedDevices} 台裝置`:''}，請用新密碼重新登入`);
+      setTimeout(logout,2500);
+    }catch(e){ $('sp-ok').disabled=false; fail(fnErrMsg(e)); }
+  };
+  setTimeout(()=>$('sp-old').focus(),50);
 }
 function _esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 async function renderAuditLog(){

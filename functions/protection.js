@@ -272,4 +272,4 @@ exports.restoreBackup = publicCall(async req => {
   return { ok: true, before };
 });
 
-module.exports.helpers = { publicCall, getLock, assertNotLocked, requireSuper, queueMail, twNow, twStamp };
+module.exports.helpers = { publicCall, getLock, assertNotLocked, requireSuper, queueMail, sendMailNow: sendMail, twNow, twStamp };
