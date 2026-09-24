@@ -1,0 +1,29 @@
+rules_version = '2';
+// 只有透過登入伺服器拿到通行證（帶 role）的人才能讀寫資料，沒有任何公開可讀的內容。
+// 登入畫面需要的員工名單、密碼設定狀態、鎖定狀態由登入伺服器（status）提供。
+// 密碼（creds）、登入失敗紀錄（attempts）、備份（backups）、流量（traffic）、待寄信件（mail）
+// 網頁一律不能碰，只有伺服器能讀寫。
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function loggedIn() {
+      return request.auth != null && request.auth.token.role in ['superadmin', 'admin', 'employee'];
+    }
+    // 系統因異常流量鎖定時，只有超級管理員能讀寫資料
+    function locked() {
+      let p = /databases/$(database)/documents/system/lock;
+      return exists(p) && get(p).data.locked == true;
+    }
+    function canUse() {
+      return loggedIn() && (request.auth.token.role == 'superadmin' || !locked());
+    }
+    match /system/data {
+      allow read, write: if canUse();
+    }
+    match /system/pinStatus {
+      allow read: if canUse();
+    }
+    match /system/lock {
+      allow read: if loggedIn();
+    }
+  }
+}

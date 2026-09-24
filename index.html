@@ -249,6 +249,8 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <div style="font-family:'Space Mono',monospace;font-size:.65rem;color:var(--text-dim);">VACATION LOTTERY SYSTEM</div>
     </div>
 
+    <div id="login-lock-banner" style="display:none;margin-bottom:14px;padding:12px 14px;border-radius:var(--radius);background:rgba(232,74,74,.1);border:1px solid rgba(232,74,74,.35);color:var(--red);font-size:.8rem;line-height:1.6;text-align:center;"></div>
+
     <!-- 員工入口 -->
     <div class="card" style="margin-bottom:14px;">
       <div class="section-title" style="margin-bottom:12px;">💆 技師自助登入</div>
@@ -1131,6 +1133,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <div style="display:flex;border-bottom:1px solid var(--border);margin-bottom:16px;gap:0;">
         <button class="accsub-btn" id="acctab-accounts" onclick="switchAccountsTab('accounts')" style="padding:9px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;cursor:pointer;border:none;background:none;white-space:nowrap;">帳號管理</button>
         <button class="accsub-btn" id="acctab-permissions" onclick="switchAccountsTab('permissions')" style="padding:9px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;cursor:pointer;border:none;background:none;white-space:nowrap;">權限管理</button>
+        <button class="accsub-btn" id="acctab-protection" onclick="switchAccountsTab('protection')" style="display:none;padding:9px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;cursor:pointer;border:none;background:none;white-space:nowrap;">系統保護</button>
       </div>
       <!-- 帳號管理子分頁 -->
       <div id="accpanel-accounts">
@@ -1178,6 +1181,37 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <!-- 權限管理子分頁 -->
       <div id="accpanel-permissions" style="display:none;">
         <div id="permissions-list"><div class="empty"><div class="empty-icon">🔐</div>載入中…</div></div>
+      </div>
+      <!-- 系統保護子分頁（只有雲端的超級管理員看得到） -->
+      <div id="accpanel-protection" style="display:none;">
+        <div class="grid-2">
+          <div class="card">
+            <div class="section-title">系統鎖定</div>
+            <div id="prot-lock-status" style="font-size:.8rem;margin-bottom:12px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);">載入中…</div>
+            <div style="font-size:.74rem;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">每小時開網頁／登入次數異常時會自動鎖定，並把備份寄到信箱。鎖定期間只有超級管理員能登入。</div>
+            <button class="btn btn-primary" id="prot-lock-btn" onclick="toggleSystemLock()">—</button>
+          </div>
+          <div class="card">
+            <div class="section-title">自動備份</div>
+            <div style="font-size:.74rem;color:var(--text-dim);line-height:1.7;margin-bottom:12px;">每天 04:00 自動備份（保留最新 3 份），每週一寄一份到信箱。鎖定、還原前也會自動備份（保留最新 5 份）。</div>
+            <button class="btn btn-ghost" onclick="backupNow()" style="margin-bottom:12px;">立即備份</button>
+            <div id="prot-backup-list" style="font-size:.78rem;">載入中…</div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="flex-between" style="margin-bottom:10px;">
+            <div class="section-title" style="margin:0;">操作紀錄</div>
+            <label style="font-size:.74rem;display:flex;align-items:center;gap:6px;cursor:pointer;">
+              <input type="checkbox" id="audit-suspicious-only" onchange="renderAuditLog()"> 只看可疑
+            </label>
+          </div>
+          <div style="font-size:.72rem;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">每次資料修改都會由伺服器記錄「誰、何時、改了什麼」，任何人都無法修改或刪除紀錄，保留 90 天。員工動到別人的資料等可疑操作會標紅並寄信通知。</div>
+          <div id="audit-list" style="font-size:.76rem;max-height:420px;overflow-y:auto;">載入中…</div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="section-title">登入紀錄</div>
+          <div id="login-log-list" style="font-size:.76rem;max-height:320px;overflow-y:auto;">載入中…</div>
+        </div>
       </div>
     </div>
 
@@ -1368,54 +1402,96 @@ let _saving=false, _pendingSave=false;
 
 // ── Firebase 設定（雲端模式，動態載入） ──
 let DATA_REF = null;
-let AUTH_REF = null;
+let PIN_REF = null;      // 哪些員工已設定密碼（登入後可讀，只有伺服器能寫）
+let _pinStatus = {};     // 雲端模式：{empId: true}
 
 function _loadScript(src){
   return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.onload=res;s.onerror=rej;document.head.appendChild(s);});
 }
 
+// 本機測試：直接開檔案(file://)或 localhost 時一律用本地模式，完全不連正式 Firebase
+function _isLocalTestEnv(){
+  const p=location.protocol, h=location.hostname;
+  return p==='file:' || h==='localhost' || h==='127.0.0.1';
+}
+// 環境：local（本機，不連線）／test（本機加 ?env=test，連測試專案）／prod（正式網站）
+function _envName(){
+  if(!_isLocalTestEnv()) return 'prod';
+  return new URLSearchParams(location.search).get('env')==='test' ? 'test' : 'local';
+}
+const FIREBASE_CONFIGS={
+  prod:{
+    apiKey:"AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
+    authDomain:"vacation-system-22655.firebaseapp.com",
+    projectId:"vacation-system-22655",
+    storageBucket:"vacation-system-22655.firebasestorage.app",
+    messagingSenderId:"171517523326",
+    appId:"1:171517523326:web:4ae4813fbbef7c93d2af2f"
+  },
+  test:{
+    apiKey:"AIzaSyCiaXtITKoKfJcpaegPziNc_mxyy7FDlSk",
+    authDomain:"vacation-system-test.firebaseapp.com",
+    projectId:"vacation-system-test",
+    storageBucket:"vacation-system-test.firebasestorage.app",
+    messagingSenderId:"883133908712",
+    appId:"1:883133908712:web:fae4318a3795ccfedb6b5d"
+  }
+};
+// 呼叫登入伺服器（Cloud Functions）
+function callFn(name,payload){
+  return firebase.app().functions('asia-east1').httpsCallable(name)(payload||{}).then(r=>r.data);
+}
+function fnErrMsg(e){ return (e&&e.message&&!/^internal$/i.test(e.message))?e.message:'連線失敗，請稍後再試'; }
+
 function loadFirebaseAndInit(){
+  const env=_envName();
+  if(env==='local'){ USE_LOCAL=true; initData(); return; }
   document.getElementById('loading-msg').textContent='連線至雲端資料庫…';
-  _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js')
-    .then(()=>Promise.all([
-      _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js'),
-      _loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js')
-    ]))
+  const V='https://www.gstatic.com/firebasejs/10.12.0/';
+  _loadScript(V+'firebase-app-compat.js')
+    .then(()=>Promise.all(['firestore','auth','functions'].map(m=>_loadScript(V+`firebase-${m}-compat.js`))))
     .then(()=>{
       USE_LOCAL=false;
-      const firebaseConfig={
-        apiKey:"AIzaSyATLiqgGasmFyUdHVSgFmGjWbKkRXxj4QI",
-        authDomain:"vacation-system-22655.firebaseapp.com",
-        projectId:"vacation-system-22655",
-        storageBucket:"vacation-system-22655.firebasestorage.app",
-        messagingSenderId:"171517523326",
-        appId:"1:171517523326:web:4ae4813fbbef7c93d2af2f"
-      };
-      firebase.initializeApp(firebaseConfig);
+      firebase.initializeApp(FIREBASE_CONFIGS[env]);
       const db=firebase.firestore();
       DATA_REF=db.collection('system').doc('data');
-      AUTH_REF=db.collection('system').doc('auth');
+      PIN_REF=db.collection('system').doc('pinStatus');
       window._fbAuth=firebase.auth();
+      // 不保留登入狀態：重新整理或關掉分頁就要重新登入（跟以前一樣）
+      return window._fbAuth.setPersistence(firebase.auth.Auth.Persistence.NONE);
+    })
+    .then(()=>{
+      if(env==='test'){
+        const b=document.getElementById('local-mode-banner');
+        b.textContent='🧪 測試環境 — 連線到 vacation-system-test，不會影響正式資料';
+        b.style.display='block';
+      }
       initData();
     })
-    .catch(()=>{
-      // Firebase 載入失敗，退回本地模式
-      USE_LOCAL=true;
-      initData();
+    .catch(e=>{
+      console.error('Firebase init failed:',e);
+      document.getElementById('loading-overlay').style.display='flex';
+      document.getElementById('loading-msg').textContent='⚠ 無法連線，請確認網路後重新整理';
     });
 }
 
 // ── save ──
+// 雲端模式：密碼只存在伺服器，送出前移除任何殘留的密碼欄位（例如匯入舊備份）
+function _cloudData(){
+  return {...data,
+    admins:(data.admins||[]).map(({password,...a})=>a),
+    employees:(data.employees||[]).map(({pin,...e})=>e)};
+}
 function save(){
   if(USE_LOCAL){
     localStorage.setItem('vacLottery_local', JSON.stringify(data));
-    return;
+    return Promise.resolve();
   }
-  if(_saving){_pendingSave=true;return;}
+  if(_saving){_pendingSave=true;return Promise.resolve();}
   _saving=true;
-  DATA_REF.set(data)
-    .then(()=>{ _saving=false; if(_pendingSave){_pendingSave=false;save();} })
-    .catch(e=>{ console.error('Save failed:',e); toast('⚠ 儲存失敗',true); _saving=false; });
+  return DATA_REF.set(_cloudData())
+    .then(()=>{ _saving=false; if(_pendingSave){_pendingSave=false;save();} return true; })
+    .catch(e=>{ console.error('Save failed:',e); toast('⚠ 儲存失敗',true); _saving=false; return false; });
 }
 
 function showLoading(msg='載入中…'){
@@ -1452,11 +1528,56 @@ function migrateData(d){
   return d;
 }
 
-// 本地模式超級管理員（僅 Claude 預覽用，密碼可自行修改）
-const LOCAL_SUPER = {username:'yuso777', password:'0629'};
+// 本地模式超級管理員（只在本機測試模式有效，碰不到雲端資料；不要改成正式帳密）
+const LOCAL_SUPER = {username:'test', password:'test'};
 // 雲端超級管理員（從 Firestore auth 文件載入，程式碼裡無密碼）
 let _cloudSuper = null;
 function getSuperAdmin(){ return USE_LOCAL ? LOCAL_SUPER : _cloudSuper; }
+
+// ══ 密碼雜湊：PBKDF2-SHA256，存成 pbkdf2$迭代次數$salt$hash ══
+// 舊資料是明文，verifyPw 仍接受；登入成功時自動轉成雜湊
+const _PW_ITER=100000;
+const _b64=u8=>btoa(String.fromCharCode(...u8));
+const _unb64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+async function _pbkdf2(pw,salt,iter){
+  if(!window.crypto||!crypto.subtle) throw new Error('此瀏覽器不支援密碼加密（需 https 或 localhost）');
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+  return new Uint8Array(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt,iterations:iter},key,256));
+}
+function isHashedPw(s){ return typeof s==='string'&&s.startsWith('pbkdf2$'); }
+async function hashPw(pw){
+  const salt=crypto.getRandomValues(new Uint8Array(16));
+  return `pbkdf2$${_PW_ITER}$${_b64(salt)}$${_b64(await _pbkdf2(pw,salt,_PW_ITER))}`;
+}
+async function verifyPw(pw,stored){
+  if(!pw||!stored) return false;
+  if(!isHashedPw(stored)) return pw===stored;
+  const [,iter,salt,hash]=stored.split('$');
+  return _b64(await _pbkdf2(pw,_unb64(salt),+iter))===hash;
+}
+// 把資料裡剩下的明文密碼（管理員、員工 PIN）全部轉成雜湊
+async function migratePlainPasswords(){
+  const todo=[];
+  for(const a of data.admins||[]) if(a.password&&!isHashedPw(a.password)) todo.push(['admins',a.id,'password',a.password]);
+  for(const e of data.employees||[]) if(e.pin&&!isHashedPw(e.pin)) todo.push(['employees',e.id,'pin',e.pin]);
+  if(!todo.length) return 0;
+  const hashes=[];
+  for(const t of todo) hashes.push(await hashPw(t[3]));
+  // 雜湊期間資料可能被同步更新，套用時重新找物件，且只換掉沒被改過的明文
+  let n=0;
+  todo.forEach(([list,id,field,plain],i)=>{
+    const o=(data[list]||[]).find(x=>x.id===id);
+    if(o&&o[field]===plain){o[field]=hashes[i];n++;}
+  });
+  if(n) save();
+  return n;
+}
+function _migratePasswordsWithToast(){
+  if(!USE_LOCAL) return; // 雲端的密碼只存在伺服器，網頁端不處理
+  migratePlainPasswords()
+    .then(n=>{ if(n) toast(`🔒 已將 ${n} 組明文密碼加密`); })
+    .catch(e=>console.error('Password migration failed:',e));
+}
 
 function initData(){
   if(USE_LOCAL){
@@ -1466,27 +1587,21 @@ function initData(){
     hideLoading(); window._isLocalMode=true; bootUI();
     return;
   }
+  // 登入前由登入伺服器提供員工名單與密碼設定狀態，完整資料要登入後才讀得到
   showLoading('連線至雲端資料庫…');
-  const _authReady=window._fbAuth
-    ? window._fbAuth.signInAnonymously().catch(()=>Promise.resolve())
-    : Promise.resolve();
-  _authReady.then(()=>Promise.all([DATA_REF.get(), AUTH_REF.get()]))
-    .then(([dataSnap, authSnap])=>{
-      data = dataSnap.exists ? migrateData(dataSnap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-      if(!dataSnap.exists) DATA_REF.set(DEFAULT_DATA);
+  callFn('status')
+    .then(st=>{
+      data=JSON.parse(JSON.stringify(DEFAULT_DATA));
+      data.employees=st.employees||[];
+      _pinStatus=st.pinStatus||{};
       hideLoading();
-      if(!authSnap.exists){
-        document.getElementById('setup-screen').style.display='flex';
-      } else {
-        _cloudSuper = authSnap.data();
-        bootUI();
+      if(st.locked){
+        const b=document.getElementById('login-lock-banner');
+        b.textContent=`⚠ 系統暫停中（${st.lockReason||'管理員鎖定'}），請聯絡管理員`;
+        b.style.display='block';
       }
-      DATA_REF.onSnapshot(snap=>{
-        if(!snap.exists) return;
-        const remote=migrateData(snap.data());
-        if(JSON.stringify(remote)===JSON.stringify(data)) return;
-        data=remote; refreshCurrentTab(); toast('🔄 資料已同步更新');
-      });
+      if(!st.superConfigured) document.getElementById('setup-screen').style.display='flex';
+      else bootUI();
     })
     .catch(e=>{
       console.error('Init failed:',e);
@@ -1494,6 +1609,25 @@ function initData(){
       document.getElementById('loading-msg').textContent='⚠ 無法連線，請確認網路後重新整理';
     });
 }
+
+// 雲端模式：拿登入伺服器發的通行證登入 Firebase，再讀完整資料並開始即時同步
+let _cloudListening=false;
+async function _cloudSignIn(token){
+  await window._fbAuth.signInWithCustomToken(token);
+  const snap=await DATA_REF.get();
+  data = snap.exists ? migrateData(snap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
+  if(!snap.exists) await DATA_REF.set(_cloudData());
+  if(_cloudListening) return;
+  _cloudListening=true;
+  DATA_REF.onSnapshot(s=>{
+    if(!s.exists) return;
+    const remote=migrateData(s.data());
+    if(JSON.stringify(remote)===JSON.stringify(data)) return;
+    data=remote; refreshCurrentTab(); toast('🔄 資料已同步更新');
+  }, e=>console.error('Sync failed:',e));
+  PIN_REF.onSnapshot(s=>{ _pinStatus=s.exists?s.data():{}; }, e=>console.error('Pin status sync failed:',e));
+}
+function _empHasPin(emp){ return USE_LOCAL ? !!emp.pin : !!_pinStatus[String(emp.id)]; }
 
 function refreshCurrentTab(){
   const active=document.querySelector('.panel.active');
@@ -1553,7 +1687,7 @@ document.getElementById('modal-confirm').onclick=()=>{ closeModal(); if(_mcb)_mc
 
 // ══ MODE ══
 // ══ FIRST-TIME SETUP ══
-function submitSetup(){
+async function submitSetup(){
   const user=document.getElementById('setup-user').value.trim();
   const pw=document.getElementById('setup-pw').value;
   const pw2=document.getElementById('setup-pw2').value;
@@ -1562,15 +1696,14 @@ function submitSetup(){
   if(!pw||pw.length<4){err.textContent='密碼至少需要 4 個字元';err.style.display='block';return;}
   if(pw!==pw2){err.textContent='兩次密碼不一致';err.style.display='block';return;}
   showLoading('儲存中…');
-  AUTH_REF.set({username:user,password:pw})
+  callFn('setupSuper',{username:user,password:pw})
     .then(()=>{
-      _cloudSuper={username:user,password:pw};
       hideLoading();
       document.getElementById('setup-screen').style.display='none';
       bootUI();
-      toast('✓ 超級管理員設定完成');
+      toast('✓ 超級管理員設定完成，請登入');
     })
-    .catch(()=>{ hideLoading(); err.textContent='儲存失敗，請重試'; err.style.display='block'; });
+    .catch(e=>{ hideLoading(); err.textContent=fnErrMsg(e); err.style.display='block'; });
 }
 
 // ══ LOGIN ══
@@ -1603,7 +1736,7 @@ function onLoginEmpChange(){
   const normalDiv=document.getElementById('login-emp-normal');
   const setupDiv=document.getElementById('login-emp-setup');
   if(!emp){normalDiv.style.display='none';setupDiv.style.display='none';return;}
-  if(emp.pin){
+  if(_empHasPin(emp)){
     normalDiv.style.display='block';setupDiv.style.display='none';
     document.getElementById('login-emp-pin').value='';
     document.getElementById('login-emp-btn').textContent='進入員工系統';
@@ -1638,11 +1771,12 @@ function _enterSelfView(eid){
   },100);
 }
 
-function loginAsEmployee(){
+async function loginAsEmployee(){
   const eid=parseInt(document.getElementById('login-emp-select').value);
   const errEl=document.getElementById('login-emp-err');
   const emp=data.employees.find(e=>e.id===eid);
   if(!emp){errEl.textContent='請選擇姓名';errEl.style.display='block';return;}
+  if(!USE_LOCAL) return _cloudLoginEmployee(eid,emp,errEl);
   if(!emp.pin){
     // 首次設定 PIN
     const newPin=document.getElementById('login-emp-pin-new').value;
@@ -1650,14 +1784,52 @@ function loginAsEmployee(){
     if(!newPin){errEl.textContent='請輸入 密碼';errEl.style.display='block';return;}
     if(newPin.length<2){errEl.textContent='密碼至少需要 2 個字元';errEl.style.display='block';return;}
     if(newPin!==confirmPin){errEl.textContent='兩次輸入的 密碼不一致';errEl.style.display='block';return;}
-    emp.pin=newPin;save();
+    const hashed=await hashPw(newPin);
+    const cur=data.employees.find(e=>e.id===eid);
+    if(cur){cur.pin=hashed;save();}
   }else{
     const pin=document.getElementById('login-emp-pin').value;
     if(!pin){errEl.textContent='請輸入 密碼';errEl.style.display='block';return;}
-    if(emp.pin!==pin){errEl.textContent='密碼錯誤';errEl.style.display='block';return;}
+    const stored=emp.pin;
+    if(!await verifyPw(pin,stored)){errEl.textContent='密碼錯誤';errEl.style.display='block';return;}
+    if(!isHashedPw(stored)){
+      const hashed=await hashPw(pin);
+      const cur=data.employees.find(e=>e.id===eid);
+      if(cur&&cur.pin===stored){cur.pin=hashed;save();}
+    }
   }
   errEl.style.display='none';
   _enterSelfView(eid);
+}
+
+let _loginBusy=false;
+async function _cloudLoginEmployee(eid,emp,errEl){
+  const setup=!_empHasPin(emp);
+  let payload;
+  if(setup){
+    const newPin=document.getElementById('login-emp-pin-new').value;
+    const confirmPin=document.getElementById('login-emp-pin-confirm').value;
+    if(!newPin){errEl.textContent='請輸入 密碼';errEl.style.display='block';return;}
+    if(newPin.length<2){errEl.textContent='密碼至少需要 2 個字元';errEl.style.display='block';return;}
+    if(newPin!==confirmPin){errEl.textContent='兩次輸入的 密碼不一致';errEl.style.display='block';return;}
+    payload={empId:eid,pin:newPin};
+  }else{
+    const pin=document.getElementById('login-emp-pin').value;
+    if(!pin){errEl.textContent='請輸入 密碼';errEl.style.display='block';return;}
+    payload={empId:eid,pin};
+  }
+  if(_loginBusy) return;
+  _loginBusy=true; showLoading('登入中…');
+  try{
+    const r=await callFn(setup?'empSetupPin':'empLogin',payload);
+    await _cloudSignIn(r.token);
+    hideLoading(); errEl.style.display='none';
+    _enterSelfView(eid);
+  }catch(e){
+    hideLoading();
+    errEl.textContent=fnErrMsg(e); errEl.style.display='block';
+    document.getElementById('login-emp-pin').value='';
+  }finally{ _loginBusy=false; }
 }
 
 function showChangePinModal(){
@@ -1672,14 +1844,19 @@ function showChangePinModal(){
     <div id="change-pin-err" style="display:none;font-size:.76rem;color:var(--red);margin-top:6px;"></div>`;
   document.getElementById('modal-confirm').textContent='確認修改';
   document.getElementById('modal').classList.add('show');
-  _mcb=()=>{
+  _mcb=async()=>{
     const np=document.getElementById('change-pin-new').value;
     const cp=document.getElementById('change-pin-confirm').value;
     const err=document.getElementById('change-pin-err');
     if(!np||np.length<2){err.textContent='密碼至少需要 2 個字元';err.style.display='block';return false;}
     if(np!==cp){err.textContent='兩次輸入不一致';err.style.display='block';return false;}
+    if(!USE_LOCAL){
+      return callFn('setEmployeePin',{empId:_currentEmpId,pin:np})
+        .then(()=>toast('✓ 密碼已更新')).catch(e=>toast('❌ '+fnErrMsg(e),true));
+    }
+    const hashed=await hashPw(np);
     const emp=data.employees.find(e=>e.id===_currentEmpId);
-    if(emp){emp.pin=np;save();toast('✓ 密碼已更新');}
+    if(emp){emp.pin=hashed;save();toast('✓ 密碼已更新');}
   };
 }
 
@@ -1700,24 +1877,55 @@ function showLoginScreen(){
   document.getElementById('login-emp-setup').style.display='none';
 }
 
-function loginAsAdmin(){
+async function loginAsAdmin(){
   const user=document.getElementById('login-admin-user').value.trim();
   const pw=document.getElementById('login-admin-pw').value;
   const errEl=document.getElementById('login-admin-err');
   if(!user||!pw){errEl.textContent='請輸入帳號和密碼';errEl.style.display='block';return;}
 
-  // 超級管理員驗證（本地用 LOCAL_SUPER，雲端用 _cloudSuper）
   let role='admin';
+  if(!USE_LOCAL){
+    // 雲端：由登入伺服器驗證密碼，網頁拿不到任何人的密碼
+    if(_loginBusy) return;
+    _loginBusy=true; showLoading('登入中…');
+    try{
+      const r=await callFn('adminLogin',{username:user,password:pw});
+      await _cloudSignIn(r.token);
+      role=r.role;
+      _cloudSuper=role==='superadmin'?{username:user}:null;
+      hideLoading();
+      if(r.locked) setTimeout(()=>showModal('系統鎖定中',
+        `系統目前鎖定中（${r.lockReason||'管理員鎖定'}）。確認沒有異常後，可以到「帳號管理 → 系統保護」解除，或現在直接解除。`,
+        ()=>callFn('setLock',{locked:false}).then(()=>{
+          toast('✓ 已解除鎖定');
+          document.getElementById('login-lock-banner').style.display='none';
+        }).catch(e=>toast('❌ '+fnErrMsg(e),true))),300);
+    }catch(e){
+      hideLoading();
+      errEl.textContent=fnErrMsg(e); errEl.style.display='block';
+      document.getElementById('login-admin-pw').value='';
+      return;
+    }finally{ _loginBusy=false; }
+  } else {
+  // 本地模式：超級管理員用 LOCAL_SUPER
   const sa=getSuperAdmin();
-  if(sa && user===sa.username && pw===sa.password){
+  if(sa && user===sa.username && await verifyPw(pw,sa.password)){
     role='superadmin';
   } else {
     // 一般管理員
-    const found=(data.admins||[]).find(a=>a.username===user&&a.password===pw);
-    if(!found){errEl.textContent='帳號或密碼錯誤';errEl.style.display='block';
+    const found=(data.admins||[]).find(a=>a.username===user);
+    const stored=found&&found.password;
+    if(!found||!await verifyPw(pw,stored)){errEl.textContent='帳號或密碼錯誤';errEl.style.display='block';
       document.getElementById('login-admin-pw').value='';return;}
+    if(!isHashedPw(stored)){
+      const hashed=await hashPw(pw);
+      const cur=(data.admins||[]).find(a=>a.id===found.id);
+      if(cur&&cur.password===stored){cur.password=hashed;save();}
+    }
+  }
   }
   errEl.style.display='none';
+  if(USE_LOCAL&&role==='superadmin') _migratePasswordsWithToast();
   // 取得管理員權限（超級管理員=superadmin, 一般管理員依 role 欄位）
   const foundAdmin=(data.admins||[]).find(a=>a.username===user);
   const adminRole=role==='superadmin'?'superadmin':(foundAdmin?.role||'主管');
@@ -1739,6 +1947,7 @@ function loginAsAdmin(){
   document.getElementById('btn-export-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-copy-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-import-data').style.display=role==='superadmin'?'inline-block':'none';
+  document.getElementById('acctab-protection').style.display=(!USE_LOCAL&&role==='superadmin')?'':'none';
   const _allTabs=['employees','periods','applications','lottery','schedule','history','counter','accounts'];
   let _visibleTabs;
   if(role==='superadmin')      _visibleTabs=new Set(_allTabs);
@@ -1759,6 +1968,8 @@ function loginAsAdmin(){
 }
 
 function logout(){
+  // 雲端：登出 Firebase 並重新載入，清掉記憶體裡的完整資料
+  if(!USE_LOCAL){ window._fbAuth.signOut().finally(()=>location.reload()); return; }
   _currentRole=null;_currentAdminRole=null;_currentEmpId=null;_currentAdminUser=null;_isSimulating=false;
   document.getElementById('local-mode-banner').style.display='none';
   document.getElementById('simulate-banner').style.display='none';
@@ -6764,10 +6975,110 @@ function adminDragEnd(e){
   document.querySelectorAll('#admin-list [data-adminidx]').forEach(el=>el.style.borderTop='');
   _adminDragIdx=null;
 }
+// ══ 系統保護（雲端超級管理員）══
+let _sysLocked=false;
+const _backupReasonLabel={daily:'每日',lock:'鎖定時',budget:'費用熔斷',attack:'攻擊熔斷',manual:'手動','before-restore':'還原前'};
+async function renderProtection(){
+  const st=document.getElementById('prot-lock-status'), btn=document.getElementById('prot-lock-btn');
+  const list=document.getElementById('prot-backup-list');
+  try{
+    const l=(await firebase.firestore().doc('system/lock').get()).data()||{};
+    _sysLocked=!!l.locked;
+    st.innerHTML=_sysLocked
+      ?`<span style="color:var(--red);">🔒 鎖定中</span>　${l.reason||''}<br><span style="color:var(--text-dim);font-size:.72rem;">${l.at||''}</span>`
+      :`<span style="color:var(--green);">✓ 正常運作</span>`;
+    btn.textContent=_sysLocked?'解除鎖定':'手動鎖定';
+    btn.className=_sysLocked?'btn btn-primary':'btn btn-danger';
+  }catch(e){ st.textContent='讀取失敗：'+fnErrMsg(e); }
+  try{
+    const bs=await callFn('listBackups');
+    list.innerHTML=bs.length?bs.map(b=>`
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--border);">
+        <div><span style="font-family:'Space Mono',monospace;">${b.at}</span>
+          <span class="badge b-gray" style="font-size:.58rem;margin-left:4px;">${_backupReasonLabel[b.reason]||b.reason}</span>
+          <span style="color:var(--text-dim);font-size:.68rem;margin-left:4px;">${Math.round(b.size/1024)} KB</span></div>
+        <div style="display:flex;gap:5px;">
+          <button class="btn btn-ghost" style="padding:3px 9px;font-size:.6rem;" onclick="downloadBackup('${b.id}')">下載</button>
+          <button class="btn btn-danger" style="padding:3px 9px;font-size:.6rem;" onclick="restoreBackup('${b.id}','${b.at}')">還原</button>
+        </div>
+      </div>`).join(''):'<div style="color:var(--text-dim);">尚無備份</div>';
+  }catch(e){ list.textContent='讀取失敗：'+fnErrMsg(e); }
+  renderAuditLog(); renderLoginLog();
+}
+function _esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+async function renderAuditLog(){
+  const el=document.getElementById('audit-list');
+  const only=document.getElementById('audit-suspicious-only').checked;
+  el.textContent='載入中…';
+  try{
+    const rows=await callFn('listAudit',{suspiciousOnly:only,limit:100});
+    el.innerHTML=rows.length?rows.map(r=>`
+      <div style="padding:8px 0;border-bottom:1px solid var(--border);${r.suspicious?'background:rgba(232,74,74,.07);':''}">
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <span style="font-family:'Space Mono',monospace;color:var(--text-dim);">${_esc(r.at)}</span>
+          <span style="font-weight:600;">${_esc(r.who)}</span>
+          ${r.suspicious?'<span class="badge" style="background:rgba(232,74,74,.15);color:var(--red);font-size:.6rem;">⚠ 可疑</span>':''}
+        </div>
+        ${r.suspicious?`<div style="color:var(--red);margin-top:3px;">${r.reasons.map(_esc).join('<br>')}</div>`:''}
+        <div style="color:var(--text-dim);margin-top:3px;line-height:1.6;">${r.lines.map(_esc).join('<br>')}</div>
+      </div>`).join(''):`<div style="color:var(--text-dim);">${only?'沒有可疑操作':'尚無紀錄'}</div>`;
+  }catch(e){ el.textContent='讀取失敗：'+fnErrMsg(e); }
+}
+async function renderLoginLog(){
+  const el=document.getElementById('login-log-list');
+  try{
+    const rows=await callFn('listLogins',{limit:100});
+    el.innerHTML=rows.length?rows.map(r=>`
+      <div style="display:flex;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;">
+        <span style="font-family:'Space Mono',monospace;color:var(--text-dim);">${_esc(r.at)}</span>
+        <span style="color:${r.ok?'var(--green)':'var(--red)'};">${r.ok?'✓ 成功':'✗ 失敗'}</span>
+        <span>${_esc(r.who)}</span>
+        ${r.reason?`<span style="color:var(--text-dim);">${_esc(r.reason)}</span>`:''}
+        <span style="color:var(--text-dim);font-family:'Space Mono',monospace;margin-left:auto;">${_esc(r.ip)}</span>
+      </div>`).join(''):'<div style="color:var(--text-dim);">尚無紀錄</div>';
+  }catch(e){ el.textContent='讀取失敗：'+fnErrMsg(e); }
+}
+function toggleSystemLock(){
+  const lock=!_sysLocked;
+  showModal(lock?'手動鎖定':'解除鎖定',
+    lock?'鎖定後只有超級管理員能登入，其他人會看到「系統暫停中」。確定要鎖定嗎？':'確認系統沒有異常後再解除。確定要解除鎖定嗎？',
+    async()=>{
+      try{ await callFn('setLock',{locked:lock}); toast(lock?'🔒 已鎖定':'✓ 已解除鎖定'); }
+      catch(e){ toast('❌ '+fnErrMsg(e),true); }
+      renderProtection();
+    });
+}
+async function backupNow(){
+  showLoading('備份中…');
+  try{ await callFn('backupNow'); hideLoading(); toast('✓ 已備份'); }
+  catch(e){ hideLoading(); toast('❌ '+fnErrMsg(e),true); }
+  renderProtection();
+}
+async function downloadBackup(id){
+  showLoading('下載中…');
+  try{
+    const {json}=await callFn('downloadBackup',{id});
+    hideLoading();
+    const url=URL.createObjectURL(new Blob([json],{type:'application/json'}));
+    const a=document.createElement('a'); a.href=url; a.download=`vacLottery_backup_${id}.json`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  }catch(e){ hideLoading(); toast('❌ '+fnErrMsg(e),true); }
+}
+function restoreBackup(id,at){
+  showModal('還原備份',`確定要把所有資料還原到「${at}」的狀態？目前的資料會先自動備份一份，還原錯了還能再還原回來。`,async()=>{
+    showLoading('還原中…');
+    try{ await callFn('restoreBackup',{id}); hideLoading(); toast('✓ 已還原'); }
+    catch(e){ hideLoading(); toast('❌ '+fnErrMsg(e),true); }
+    renderProtection();
+  });
+}
+
 function switchAccountsTab(tab){
   document.getElementById('accpanel-accounts').style.display=tab==='accounts'?'block':'none';
   document.getElementById('accpanel-permissions').style.display=tab==='permissions'?'block':'none';
-  ['accounts','permissions'].forEach(t=>{
+  document.getElementById('accpanel-protection').style.display=tab==='protection'?'block':'none';
+  if(tab==='protection') renderProtection();
+  ['accounts','permissions','protection'].forEach(t=>{
     const b=document.getElementById('acctab-'+t);
     if(!b) return;
     const active=t===tab;
@@ -6903,7 +7214,7 @@ function renderAccounts(){
   const pinInput=document.getElementById('pin-set-input');
   if(pinInput) pinInput.value='';
 }
-function addAdmin(){
+async function addAdmin(){
   const user=document.getElementById('new-admin-user').value.trim();
   const pw=document.getElementById('new-admin-pw').value.trim();
   if(!user||!pw)return toast('請輸入帳號和密碼',true);
@@ -6912,7 +7223,8 @@ function addAdmin(){
   if((data.admins||[]).find(a=>a.username===user))return toast('帳號已存在',true);
   if(!data.admins)data.admins=[];
   const role=document.getElementById('new-admin-role').value||'主管';
-  const newAdmin={id:`${Date.now()}`,username:user,password:pw,role};
+  const newAdmin={id:`${Date.now()}`,username:user,role};
+  if(USE_LOCAL) newAdmin.password=await hashPw(pw);
   // 角色排序：負責人 > 主管 > 櫃檶，插入到相同角色群組最後一個之後
   const _aRoleOrder=r=>r==='負責人'?0:r==='主管'?1:r==='清潔'?3:2;
   const newOrder=_aRoleOrder(role);
@@ -6927,6 +7239,20 @@ function addAdmin(){
     if(insertIdx===-1) insertIdx=data.admins.length;
   }
   data.admins.splice(insertIdx,0,newAdmin);
+  if(!USE_LOCAL){
+    // 先存帳號（伺服器要看得到這個管理員），再請伺服器設定密碼；失敗就把帳號拿掉
+    showLoading('建立帳號中…');
+    try{
+      await DATA_REF.set(_cloudData());
+      await callFn('setAdminPassword',{adminId:newAdmin.id,password:pw});
+      hideLoading();
+    }catch(e){
+      hideLoading();
+      data.admins=data.admins.filter(a=>a.id!==newAdmin.id);
+      save();renderAccounts();
+      return toast('❌ '+fnErrMsg(e),true);
+    }
+  }
   save();renderAccounts();
   document.getElementById('new-admin-user').value='';
   document.getElementById('new-admin-pw').value='';
@@ -6946,17 +7272,28 @@ function changeAdminPw(id){
   document.getElementById('modal-confirm').textContent='確認修改';
   document.getElementById('modal-confirm').style.display='';
   document.getElementById('modal').classList.add('show');
-  _mcb=()=>{
+  _mcb=async()=>{
     const np=document.getElementById('change-admin-pw-input').value.trim();
     const err=document.getElementById('change-admin-pw-err');
     if(!np){err.textContent='請輸入新密碼';err.style.display='block';return false;}
-    admin.password=np;save();toast(`✓ 「${admin.username}」密碼已更新`);
+    if(!USE_LOCAL){
+      return callFn('setAdminPassword',{adminId:id,password:np})
+        .then(()=>toast(`✓ 「${admin.username}」密碼已更新`)).catch(e=>toast('❌ '+fnErrMsg(e),true));
+    }
+    const hashed=await hashPw(np);
+    const cur=(data.admins||[]).find(a=>a.id===id);
+    if(cur){cur.password=hashed;save();toast(`✓ 「${cur.username}」密碼已更新`);}
   };
 }
 function removeAdmin(id){
   const target=(data.admins||[]).find(a=>a.id===id);
   if(!target||!_canEditAdmin(target.role||'主管')) return toast('權限不足，無法刪除此帳號',true);
-  showModal('刪除管理員','確定要刪除此管理員帳號？',()=>{
+  showModal('刪除管理員','確定要刪除此管理員帳號？',async()=>{
+    if(!USE_LOCAL){
+      // 先刪伺服器上的密碼並讓他已登入的裝置失效，再從名單移除
+      try{ await callFn('deleteAdminCreds',{adminId:id}); }
+      catch(e){ return toast('❌ '+fnErrMsg(e),true); }
+    }
     data.admins=(data.admins||[]).filter(a=>a.id!==id);
     save();renderAccounts();toast('✓ 已刪除');
   });
@@ -7020,26 +7357,41 @@ function onPinEmpChange(){
   const info=document.getElementById('pin-current');
   const input=document.getElementById('pin-set-input');
   if(!emp){info.textContent='--先選擇員工--';info.style.color='var(--text-dim)';if(input)input.value='';return;}
-  info.innerHTML=emp.pin
+  info.innerHTML=_empHasPin(emp)
     ?`<span style="color:var(--green);">✓ 已設定 密碼</span>`
     :`<span style="color:var(--text-dim);">尚未設定</span>`;
   if(input)input.value='';
 }
-function setEmpPin(){
+async function setEmpPin(){
   const eid=parseInt(document.getElementById('pin-emp-select').value);
   const pin=document.getElementById('pin-set-input').value.trim();
-  const emp=data.employees.find(e=>e.id===eid);
-  if(!emp)return toast('請選擇員工',true);
+  if(!data.employees.find(e=>e.id===eid))return toast('請選擇員工',true);
   if(!pin||pin.length<2)return toast('密碼至少需要 2 個字元',true);
-  emp.pin=pin;save();onPinEmpChange();
+  if(!USE_LOCAL){
+    try{ await callFn('setEmployeePin',{empId:eid,pin}); }
+    catch(e){ return toast('❌ '+fnErrMsg(e),true); }
+    _pinStatus[String(eid)]=true; onPinEmpChange();
+    const e=data.employees.find(x=>x.id===eid);
+    return toast(`✓ ${e?e.name:''} 的 密碼已設定`);
+  }
+  const hashed=await hashPw(pin);
+  const emp=data.employees.find(e=>e.id===eid);
+  if(!emp)return toast('找不到此員工',true);
+  emp.pin=hashed;save();onPinEmpChange();
   toast(`✓ ${emp.name} 的 密碼已設定`);
 }
 function resetEmpPin(){
   const eid=parseInt(document.getElementById('pin-emp-select').value);
   const emp=data.employees.find(e=>e.id===eid);
   if(!emp)return toast('請選擇員工',true);
-  if(!emp.pin)return toast('此員工尚未設定 密碼',true);
-  showModal('重置 密碼',`確定要清除 ${emp.name} 的 密碼？員工下次登入時需重新設定。`,()=>{
+  if(!_empHasPin(emp))return toast('此員工尚未設定 密碼',true);
+  showModal('重置 密碼',`確定要清除 ${emp.name} 的 密碼？員工下次登入時需重新設定。`,async()=>{
+    if(!USE_LOCAL){
+      try{ await callFn('resetEmployeePin',{empId:eid}); }
+      catch(e){ return toast('❌ '+fnErrMsg(e),true); }
+      delete _pinStatus[String(eid)]; onPinEmpChange();
+      return toast(`✓ ${emp.name} 的 密碼已重置`);
+    }
     emp.pin=null;save();onPinEmpChange();
     toast(`✓ ${emp.name} 的 密碼已重置`);
   });
@@ -7118,7 +7470,7 @@ function showPasteImport(){
       if(!Array.isArray(imported.employees)||!Array.isArray(imported.periods)){
         err.textContent='格式不正確，請確認資料來源';err.style.display='block';return false;
       }
-      data=migrateData(imported);save();
+      data=migrateData(imported);save();_migratePasswordsWithToast();
       renderDeptOptions();renderDeptList();renderEmployees();updateStats();
       if(document.getElementById('panel-applications').classList.contains('active')){refreshAppSelects();renderApplications();}
       if(document.getElementById('panel-schedule').classList.contains('active'))initSchedule();
@@ -7140,7 +7492,7 @@ function importData(event){
         return toast('❌ 檔案格式不正確',true);
       showModal('確認匯入',`確定要匯入「${file.name}」？目前所有資料將被覆蓋。`,()=>{
         data=migrateData(imported);
-        save();
+        save();_migratePasswordsWithToast();
         // 重新渲染目前畫面
         renderDeptOptions();renderDeptList();renderEmployees();updateStats();
         if(document.getElementById('panel-applications').classList.contains('active')){refreshAppSelects();renderApplications();}
@@ -7738,6 +8090,7 @@ function bootUI(){
     document.getElementById('btn-import-data').style.display='inline-block';
     document.getElementById('admin-view').style.display='block';
     renderDeptOptions();renderDeptList();renderEmployees();updateStats();
+    _migratePasswordsWithToast();
   } else {
     showLoginScreen();
   }

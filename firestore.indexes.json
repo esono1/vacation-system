@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "audit",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "suspicious", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

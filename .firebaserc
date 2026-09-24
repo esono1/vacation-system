@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "vacation-system-test",
+    "test": "vacation-system-test",
+    "prod": "vacation-system-22655"
+  }
+}

@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.firebase/
+# 備份檔含所有人資料，不要上傳
+*backup*.json
+
+# 寄信用的 Gmail 帳號設定
+functions/.env
