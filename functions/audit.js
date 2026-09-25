@@ -27,7 +27,8 @@ const MASS_DELETE = 10;
 
 // 各分頁的網頁功能會改動的資料（依 index.html 掃描＋人工確認，改網頁功能時要一起更新）
 const TAB_FIELDS = {
-  employees: ['employees', 'departments', 'deptTimes', 'applications'],
+  // 員工改名時會同步改申請、額外假、補假、長假、抽籤紀錄、補籤資訊裡的名字
+  employees: ['employees', 'departments', 'deptTimes', 'applications', 'extraLeaves', 'makeupLeaves', 'longLeaves', 'history', 'pendingPromotions'],
   periods: ['periods', 'applications', 'dailyLimits'],
   applications: ['applications', 'history', 'makeupLeaves', 'pendingPromotions', 'extraLeaves', 'longLeaves',
     'monthlyQuota', 'partTimeQuota', 'empQuotas', 'dailyLimits'],
@@ -38,12 +39,13 @@ const TAB_FIELDS = {
   accounts: ['admins', 'adminPermissions'],
 };
 const ALL_TABS = Object.keys(TAB_FIELDS);
-// 對應網頁 loginAsAdmin 的分頁顯示邏輯
+// 對應網頁 loginAsAdmin／getDefaultTabs 的分頁顯示邏輯
 function visibleTabs(adminRec, perms) {
   if (perms) return new Set(perms);
-  const role = adminRec.role || '主管';
+  const role = adminRec.role === '櫃檶' ? '櫃檯' : (adminRec.role || '主管');
   if (role === '負責人') return new Set(ALL_TABS);
   if (role === '櫃檯') return new Set(['schedule', 'history', 'counter']);
+  if (role === '清潔') return new Set(['schedule', 'history']);
   return new Set(['employees', 'periods', 'applications', 'lottery', 'schedule', 'history', 'counter']);
 }
 
@@ -59,6 +61,7 @@ function normalize(d) {
   if (!x.partTimeQuota) x.partTimeQuota = 15;
   x.periods.forEach(p => { p.genderRestrict = ''; if (p.allowApplication === undefined) p.allowApplication = true; if (p.allowMakeup === undefined) p.allowMakeup = true; });
   x.employees.forEach(e => { if (!e.store) e.store = '竹北店'; });
+  x.admins.forEach(a => { if (a.role === '櫃檶') a.role = '櫃檯'; });
   return x;
 }
 
@@ -199,6 +202,7 @@ const keyOf = x => (x && typeof x === 'object') ? String(x.id ?? x.periodId ?? x
 function diffData(before, after) {
   const changes = [];
   for (const field of new Set([...Object.keys(before), ...Object.keys(after)])) {
+    if (field === '_v') continue; // 資料版本號，每次存檔都會變，不算內容修改
     const b = before[field], a = after[field];
     if (J(b) === J(a)) continue;
     if (Array.isArray(a) || Array.isArray(b)) {
@@ -277,7 +281,8 @@ function identify(event, ctx) {
 }
 
 // ══ 可疑判斷 ══
-// 伺服器的合法寫入只有兩種：舊資料密碼搬移（只移除 password／pin 欄位）、超級管理員還原備份
+// 伺服器的合法寫入只有三種：舊資料密碼搬移（只移除 password／pin 欄位）、超級管理員還原備份、封存舊資料
+// （還原與封存前一定會先建立 before-restore／archive 備份，用 2 分鐘內有沒有這種備份來辨識）
 function isPasswordScrub(changes) {
   return changes.length > 0 && changes.every(c => (c.field === 'admins' || c.field === 'employees') &&
     !c.added.length && !c.removed.length && c.changed.every(x => {
@@ -285,9 +290,12 @@ function isPasswordScrub(changes) {
       return keys.length && keys.every(k => (k === 'password' || k === 'pin') && x.after[k] === undefined);
     }));
 }
-function judgeServer(changes, recentRestore) {
+function judgeServer(changes, recentKinds) {
+  const recent = recentKinds instanceof Set ? recentKinds : new Set(recentKinds ? ['before-restore'] : []);
   if (isPasswordScrub(changes)) return { who: '系統：舊資料密碼搬移', reasons: [] };
-  if (recentRestore) return { who: '系統：超級管理員還原備份', reasons: [] };
+  if (recent.has('before-restore')) return { who: '系統：超級管理員還原備份', reasons: [] };
+  if (recent.has('archive') && changes.every(c => 'removed' in c && !c.added.length && !c.changed.length || c.field === 'periods'))
+    return { who: '系統：封存舊資料', reasons: [] };
   return { who: '系統／專案管理權限', reasons: ['有人使用 Google Cloud 專案權限直接修改了資料（不是透過網頁）。只有專案擁有者的 Google 帳號或伺服器能做到，請確認是不是你本人'] };
 }
 
@@ -333,7 +341,7 @@ exports.auditDataWrite = onDocumentWrittenWithAuthContext('system/data', async e
     const since = twNow(); since.setUTCMinutes(since.getUTCMinutes() - 2);
     const sinceId = since.toISOString().slice(0, 19).replace(/[-:T]/g, '');
     const recent = await db.collection('backups').where(admin.firestore.FieldPath.documentId(), '>=', sinceId).get();
-    const s = judgeServer(changes, recent.docs.some(d => d.id.endsWith('_before-restore')));
+    const s = judgeServer(changes, new Set(recent.docs.map(d => d.id.split('_').slice(1).join('_'))));
     me.who = s.who; reasons = s.reasons;
   }
   const rec = { ts: Date.now(), at: twStamp(), uid: me.uid, who: me.who, role: me.role, lines, suspicious: reasons.length > 0, reasons };

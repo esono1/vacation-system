@@ -77,6 +77,29 @@ run('負責人改管理員帳號', 'admin_a1', d => { d.admins[1].role = '主管
 run('主管一次刪 12 筆', 'admin_a3', d => { for (let i = 0; i < 12; i++) base.applications.push({ id: 'x' + i, periodId: 100, empId: 1, dates: ['2026-10-0' + (i % 9 + 1)] }); d.applications = []; }, true);
 base.applications = base.applications.slice(0, 2);
 run('超級管理員任意修改', 'super', d => { d.applications = []; d.monthlyQuota = 1; }, false);
+{ // 只有「技師管理」分頁權限的主管幫員工改名（會同步改抽籤紀錄、額外假裡的名字）
+  base.adminPermissions = { a3: ['employees'] };
+  run('只有技師管理權限的主管改員工姓名（同步改紀錄）', 'admin_a3', d => {
+    d.employees[0].name = '小明明'; d.applications[0].empName = '小明明'; d.extraLeaves.forEach(x => { x.empName = '小明明'; });
+    d.history[0].losers[0].name = '小明明';
+  }, false);
+  base.adminPermissions = {};
+}
+{ // 清潔：只看得到假表、歷史
+  base.admins.push({ id: 'a4', username: 'TJ', role: '清潔' });
+  run('清潔改排假申請（看不到的分頁）', 'admin_a4', d => { d.applications[1].dates.push('2026-10-09'); }, true);
+  run('清潔改櫃檯排休（預設看不到櫃檯分頁）', 'admin_a4', d => d.counterApplications.push({ id: 'c2', adminId: 'a4', date: '2026-10-01' }), true);
+  base.admins.pop();
+}
+{ // 舊錯字「櫃檶」：網頁載入時自動改正成「櫃檯」，任何人存檔帶到這個改正都不算修改；權限照櫃檯
+  const raw = clone(base); raw.admins[1].role = '櫃檶';
+  const ch = diffData(normalize(raw), clone(base));
+  const ok = ch.length === 0; if (!ok) fail++;
+  console.log(`${ok ? '✅' : '❌'} [應正常] 載入時把「櫃檶」改正成「櫃檯」不算修改`);
+  base.admins.push({ id: 'a5', username: 'GG', role: '櫃檶' });
+  run('舊錯字櫃檶的帳號改排假申請（應依櫃檯權限擋下）', 'admin_a5', d => { d.applications[1].dates.push('2026-10-09'); }, true);
+  base.admins.pop();
+}
 console.log('── 伺服器／專案管理權限的寫入');
 {
   const { judgeServer } = require(path.join(FN, 'audit.js'))._test;
@@ -92,6 +115,35 @@ console.log('── 伺服器／專案管理權限的寫入');
   check('還原備份（2 分鐘內有還原前備份）', a => { a.applications = []; }, true, false);
   check('搬移時順便改了別的欄位', a => { delete a.admins[0].password; a.admins[0].role = '主管'; }, false, true);
   check('沒有還原、也不是搬移的直接修改', a => { a.monthlyQuota = 99; }, false, true);
+  // 封存：2 分鐘內有 archive 備份，而且只有「刪除」
+  const b = clone(base), onlyRemove = clone(base); onlyRemove.applications = []; onlyRemove.periods = [];
+  const r1 = judgeServer(diffData(b, onlyRemove), new Set(['archive']));
+  const ok1 = !r1.reasons.length; if (!ok1) fail++;
+  console.log(`${ok1 ? '✅' : '❌'} [應正常] 封存舊資料（只刪除） → ${r1.who}`);
+  const sneaky = clone(base); sneaky.applications = []; sneaky.monthlyQuota = 99;
+  const r2 = judgeServer(diffData(b, sneaky), new Set(['archive']));
+  const ok2 = r2.reasons.length > 0; if (!ok2) fail++;
+  console.log(`${ok2 ? '✅' : '❌'} [應可疑] 封存時順便改了別的設定 → ${r2.who}`);
+}
+
+console.log('── 封存舊資料的挑選規則');
+{
+  const { splitForArchive } = require(path.join(FN, 'protection.js')).helpers;
+  const d = {
+    periods: [{ id: 1, name: '舊', start: '2026-01-01', end: '2026-01-31' }, { id: 2, name: '新', start: '2026-09-01', end: '2026-09-30' }],
+    applications: [{ id: 'a1', periodId: 1 }, { id: 'a2', periodId: 2 }],
+    history: [{ periodId: 1, date: '2026-01-05' }, { periodId: 2, date: '2026-09-05' }, { periodId: 99, date: '2025-12-01' }],
+    extraLeaves: [{ id: 'x1', date: '2026-01-10' }, { id: 'x2', date: '2026-09-10' }],
+    counterApplications: [{ id: 'c1', date: '2026-01-02' }, { id: 'c2', date: '2026-09-02' }],
+    publishedSchedules: [{ periodId: 1, periodEnd: '2026-01-31' }], makeupLeaves: [], longLeaves: [{ endDate: '2026-01-20' }],
+    employees: [{ id: 1, name: '小明' }], monthlyQuota: 8,
+  };
+  const { out, oldPeriods, dropped } = splitForArchive(d, '2026-03-25');
+  const ok = oldPeriods.length === 1 && out.periods.length === 1 && out.applications.length === 1 && out.history.length === 1 &&
+    out.extraLeaves.length === 1 && out.counterApplications.length === 1 && !out.publishedSchedules.length && !out.longLeaves.length &&
+    out.employees.length === 1 && out.monthlyQuota === 8;
+  if (!ok) fail++;
+  console.log(`${ok ? '✅' : '❌'} 結束滿 6 個月的假期與相關紀錄被移除、其他保留 → 移除 ${JSON.stringify(dropped)}`);
 }
 console.log(fail ? `\n${fail} 項失敗` : '\n全部通過');
 process.exit(fail ? 1 : 0);

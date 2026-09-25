@@ -116,10 +116,12 @@ async function scrubLegacy() {
   // 用交易只改 admins / employees 兩個欄位，不覆蓋其他人同時寫入的資料
   return db.runTransaction(async tx => {
     const cur = (await tx.get(DATA)).data();
+    const v = await protection.helpers.nextVersion(tx);
     const cleanAdmins = (cur.admins || []).map(a => { const { password, ...rest } = a; return rest; });
     const cleanEmps = (cur.employees || []).map(e => { const { pin, ...rest } = e; return rest; });
-    tx.update(DATA, { admins: cleanAdmins, employees: cleanEmps });
-    return { ...cur, admins: cleanAdmins, employees: cleanEmps };
+    tx.update(DATA, { admins: cleanAdmins, employees: cleanEmps, _v: v });
+    tx.set(protection.helpers.META, { v });
+    return { ...cur, admins: cleanAdmins, employees: cleanEmps, _v: v };
   });
 }
 
@@ -137,7 +139,7 @@ function roleRank(role) {
   if (role === 'superadmin') return 4;
   if (role === '負責人') return 3;
   if (role === '主管') return 2;
-  if (role === '櫃檯' || role === '清潔') return 1;
+  if (role === '櫃檯' || role === '櫃檶' || role === '清潔') return 1; // 櫃檶：舊版錯字，網頁載入時會改正
   return 0;
 }
 async function callerInfo(req) {
@@ -338,6 +340,30 @@ exports.changeSuperPassword = publicCall(async req => {
     `已移除其他 ${others.length} 台信任裝置，其他裝置下次登入需要重新用信箱驗證碼確認。\n\n` +
     `如果不是你本人修改的，請立即到 Firebase 主控台 → Firestore → creds 集合刪除 super 文件，重新設定超級管理員。`);
   return { ok: true, removedDevices: others.length };
+});
+
+// ══ 管理員修改自己的密碼（要輸入目前密碼；改完其他裝置的登入失效）══
+exports.changeOwnAdminPassword = publicCall(async req => {
+  const t = req.auth && req.auth.token;
+  if (!t || t.role !== 'admin') throw new HttpsError('permission-denied', '只有管理員可以使用');
+  const { oldPassword, newPassword } = req.data || {};
+  if (typeof newPassword !== 'string' || !newPassword.trim()) throw new HttpsError('invalid-argument', '請輸入新密碼');
+  if (newPassword.length > 100) throw new HttpsError('invalid-argument', '密碼太長');
+  const d = (await DATA.get()).data() || {};
+  const me = (d.admins || []).find(a => a.id === t.adminId);
+  if (!me) throw new HttpsError('permission-denied', '帳號已不存在');
+  const key = attemptKey(`admin:${me.username}`);
+  await checkLock(key);
+  const c = await cred(`admin_${me.id}`).get();
+  if (!c.exists || !(await verifyPw(oldPassword, c.data().hash))) {
+    await recordFail(key);
+    throw new HttpsError('permission-denied', '目前密碼錯誤');
+  }
+  await cred(`admin_${me.id}`).set({ hash: await hashPw(newPassword.trim()) });
+  await clearFails(key);
+  await admin.auth().revokeRefreshTokens(`admin_${me.id}`).catch(() => {});
+  await logLogin(req, { kind: 'admin', who: `${me.username}（${me.role || '主管'}）`, ok: true, reason: '修改自己的密碼' });
+  return { ok: true };
 });
 
 // ══ 員工登入 ══
