@@ -146,14 +146,14 @@ tr:hover td{background:rgba(255,255,255,.018);}
 .history-item.open .history-detail{display:block;}
 
 /* ── Modal ── */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:1000;align-items:center;justify-content:center;}/* 確認視窗要蓋過編輯視窗（z-index 300） */
 .modal-overlay.show{display:flex;}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:26px;max-width:420px;width:90%;}
 .modal h2{font-size:.96rem;margin-bottom:9px;}
 .modal p{color:var(--text-dim);font-size:.83rem;margin-bottom:18px;line-height:1.7;}
 
 /* ── Toast ── */
-.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:var(--radius);font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.05em;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;}
+.toast{position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--accent);color:var(--text);padding:9px 16px;border-radius:var(--radius);font-family:'Space Mono',monospace;font-size:.68rem;letter-spacing:.05em;z-index:9800;transform:translateY(80px);opacity:0;transition:all .3s;}
 .toast.show{transform:translateY(0);opacity:1;}
 .toast.error{border-color:var(--red);}
 
@@ -384,6 +384,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
   </div>
   <div class="header-mode">
     <button class="mode-btn" id="btn-change-pin" onclick="showChangePinModal()" style="display:none;margin-right:8px;font-size:.62rem;">🔑 修改 PIN</button>
+    <button class="mode-btn" id="btn-change-own-pw" onclick="changeOwnPassword()" style="display:none;margin-right:8px;font-size:.62rem;">🔑 修改密碼</button>
     <button class="mode-btn" id="btn-simulate-emp" onclick="enterSimulateView()" style="display:none;background:rgba(232,122,74,.12);border-color:rgba(232,122,74,.4);color:var(--accent2);">👁️ 模擬員工</button>
     <button class="mode-btn" id="btn-back-to-admin" onclick="backToAdmin()" style="display:none;background:rgba(74,232,122,.12);border-color:rgba(74,232,122,.4);color:var(--green);">↩ 返回管理員</button>
     <button class="mode-btn" id="btn-export-data" onclick="exportData()" style="display:none;font-size:.62rem;">💾 匯出資料</button>
@@ -860,7 +861,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
               <option value="">全部</option>
               <option value="male">足師</option>
               <option value="female">體師</option>
-              <option value="__counter__">櫃檶</option>
+              <option value="__counter__">櫃檯</option>
               <option value="__cleaner__">清潔人員</option>
             </select>
           </div>
@@ -904,12 +905,12 @@ tr:hover td{background:rgba(255,255,255,.018);}
       <div style="display:flex;border-bottom:1px solid var(--border);padding:0 28px;margin-bottom:16px;">
         <button class="apptab active" id="ctab-staff" onclick="switchCounterTab('staff')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">👥 櫃檯人員</button>
         <button class="apptab" id="ctab-leave" onclick="switchCounterTab('leave')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">📋 櫃檯排假</button>
-        <button class="apptab" id="ctab-special" onclick="switchCounterTab('special')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">🗓 櫃檶特殊排班</button>
+        <button class="apptab" id="ctab-special" onclick="switchCounterTab('special')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">🗓 櫃檯特殊排班</button>
         <button class="apptab" id="ctab-cleaner-staff" onclick="switchCounterTab('cleaner-staff')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">🧑‍🔧 清潔人員</button>
         <button class="apptab" id="ctab-cleaners" onclick="switchCounterTab('cleaners')" style="padding:10px 18px;font-family:'Space Mono',monospace;font-size:.66rem;letter-spacing:.1em;color:var(--text-dim);cursor:pointer;border:none;background:none;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;">🧹 清潔人員排班</button>
       </div>
 
-      <!-- 子分頁：櫃檶特殊排班（預設隱藏） -->
+      <!-- 子分頁：櫃檯特殊排班（預設隱藏） -->
       <div id="cpanel-special" style="display:none;">
         <!-- 班別調整 -->
         <div class="card" style="margin-top:10px;">
@@ -970,7 +971,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
         </div>
         </div>
 
-      <!-- 子分頁：櫃檶排假（預設隱藏） -->
+      <!-- 子分頁：櫃檯排假（預設隱藏） -->
       <div id="cpanel-leave" style="display:none;">
         <div class="card">
           <div class="section-title">選擇管理員與假期</div>
@@ -1147,7 +1148,7 @@ tr:hover td{background:rgba(255,255,255,.018);}
               <select id="new-admin-role" style="width:100%;">
                 <option value="負責人">負責人</option>
                 <option value="主管">主管</option>
-                <option value="櫃檶">櫃檶</option>
+                <option value="櫃檯">櫃檯</option>
                 <option value="清潔">清潔</option>
               </select>
             </div>
@@ -1197,6 +1198,14 @@ tr:hover td{background:rgba(255,255,255,.018);}
             <button class="btn btn-ghost" onclick="backupNow()" style="margin-bottom:12px;">立即備份</button>
             <div id="prot-backup-list" style="font-size:.78rem;">載入中…</div>
           </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="flex-between" style="margin-bottom:10px;">
+            <div class="section-title" style="margin:0;">舊資料封存</div>
+            <button class="btn btn-ghost" onclick="archiveNow()">立即封存</button>
+          </div>
+          <div style="font-size:.72rem;color:var(--text-dim);line-height:1.6;margin-bottom:10px;">每天 04:00 自動檢查：結束滿 6 個月的假期，會先把完整資料寄到信箱，再連同它的申請、抽籤、補假、額外假、櫃檯／清潔排班一起從系統移除，避免資料超過 1 MB 上限導致無法存檔。</div>
+          <div id="archive-preview" style="font-size:.78rem;">載入中…</div>
         </div>
         <div class="card" style="margin-top:16px;">
           <div class="flex-between" style="margin-bottom:10px;">
@@ -1411,6 +1420,8 @@ let _saving=false, _pendingSave=false;
 // ── Firebase 設定（雲端模式，動態載入） ──
 let DATA_REF = null;
 let PIN_REF = null;      // 哪些員工已設定密碼（登入後可讀，只有伺服器能寫）
+let META_REF = null;     // 資料版本號 {v}：存檔前比對，避免兩人同時編輯互相覆蓋
+let _baseV = 0;          // 目前畫面上的資料是第幾版
 let _pinStatus = {};     // 雲端模式：{empId: true}
 
 function _loadScript(src){
@@ -1463,6 +1474,7 @@ function loadFirebaseAndInit(){
       firebase.initializeApp(FIREBASE_CONFIGS[env]);
       const db=firebase.firestore();
       DATA_REF=db.collection('system').doc('data');
+      META_REF=db.collection('system').doc('meta');
       PIN_REF=db.collection('system').doc('pinStatus');
       window._fbAuth=firebase.auth();
       // 不保留登入狀態：重新整理或關掉分頁就要重新登入（跟以前一樣）
@@ -1497,9 +1509,32 @@ function save(){
   }
   if(_saving){_pendingSave=true;return Promise.resolve();}
   _saving=true;
-  return DATA_REF.set(_cloudData())
-    .then(()=>{ _saving=false; if(_pendingSave){_pendingSave=false;save();} return true; })
-    .catch(e=>{ console.error('Save failed:',e); toast('⚠ 儲存失敗',true); _saving=false; return false; });
+  // 版本號跟畫面上的不一樣，代表這段時間有別人存過檔：不覆蓋，改成載入最新資料
+  const payload=_cloudData();
+  return firebase.firestore().runTransaction(async tx=>{
+    const m=await tx.get(META_REF);
+    const v=m.exists?(m.data().v||0):0;
+    if(v!==_baseV){ const err=new Error('conflict'); err.conflict=true; throw err; }
+    tx.set(DATA_REF,{...payload,_v:v+1});
+    tx.set(META_REF,{v:v+1});
+    return v+1;
+  })
+    .then(nv=>{ _baseV=nv; data._v=nv; _saving=false; if(_pendingSave){_pendingSave=false;save();} return true; })
+    .catch(e=>{
+      _saving=false; _pendingSave=false;
+      if(e&&e.conflict){ _reloadAfterConflict(); return false; }
+      console.error('Save failed:',e); toast('⚠ 儲存失敗',true); return false;
+    });
+}
+function _reloadAfterConflict(){
+  DATA_REF.get().then(s=>{
+    if(!s.exists) return;
+    data=migrateData(s.data()); _baseV=data._v||0;
+    refreshCurrentTab();
+    showModal('資料已被其他人修改',
+      '在你操作的同時，有其他人更新了資料。為了不覆蓋對方的修改，你剛才的這次修改沒有存檔，畫面已經更新成最新的資料。請確認後重新操作一次。',null);
+    document.getElementById('modal-confirm').textContent='我知道了';
+  }).catch(e=>console.error('Reload failed:',e));
 }
 
 function showLoading(msg='載入中…'){
@@ -1521,6 +1556,8 @@ function migrateData(d){
   if(!d.monthlyQuota) d.monthlyQuota=8;
   if(!d.partTimeQuota) d.partTimeQuota=15;
   if(!Array.isArray(d.admins)) d.admins=[];
+  // 舊版「新增管理員」選單把櫃檯寫成錯字「櫃檶」，統一改正（否則權限判斷不到）
+  d.admins.forEach(a=>{ if(a.role==='櫃檶') a.role='櫃檯'; });
   if(!d.dailyLimits) d.dailyLimits={};
   if(!d.publishedSchedules) d.publishedSchedules=[];
   if(!d.counterApplications) d.counterApplications=[];
@@ -1624,12 +1661,14 @@ async function _cloudSignIn(token){
   await window._fbAuth.signInWithCustomToken(token);
   const snap=await DATA_REF.get();
   data = snap.exists ? migrateData(snap.data()) : JSON.parse(JSON.stringify(DEFAULT_DATA));
-  if(!snap.exists) await DATA_REF.set(_cloudData());
+  _baseV = data._v||0;
+  if(!snap.exists) await save();
   if(_cloudListening) return;
   _cloudListening=true;
   DATA_REF.onSnapshot(s=>{
     if(!s.exists) return;
     const remote=migrateData(s.data());
+    _baseV=remote._v||0;
     if(JSON.stringify(remote)===JSON.stringify(data)) return;
     data=remote; refreshCurrentTab(); toast('🔄 資料已同步更新');
   }, e=>console.error('Sync failed:',e));
@@ -1689,9 +1728,29 @@ function toast(msg,err=false){
   setTimeout(()=>t.classList.add('show'),10); setTimeout(()=>t.classList.remove('show'),2700);
 }
 let _mcb=null;
-function showModal(title,msg,cb){ document.getElementById('modal-title').textContent=title; document.getElementById('modal-msg').textContent=msg; document.getElementById('modal').classList.add('show'); _mcb=cb; }
-function closeModal(){ document.getElementById('modal').classList.remove('show'); }
-document.getElementById('modal-confirm').onclick=()=>{ closeModal(); if(_mcb)_mcb(); };
+function showModal(title,msg,cb){
+  const msgEl=document.getElementById('modal-msg');
+  document.getElementById('modal-title').textContent=title; msgEl.textContent=msg; msgEl.style.whiteSpace='pre-line';
+  // 其他視窗可能把確認按鈕藏起來或改了文字（例如匯入選單、改密碼），每次都重設
+  const btn=document.getElementById('modal-confirm'); btn.style.display=''; btn.textContent='確認';
+  document.getElementById('modal').classList.add('show'); _mcb=cb;
+}
+function closeModal(){
+  document.getElementById('modal').classList.remove('show');
+  const btn=document.getElementById('modal-confirm'); btn.style.display=''; btn.textContent='確認';
+  document.getElementById('modal-msg').style.whiteSpace=''; // 只有 showModal 的純文字需要保留換行
+  _mcb=null; // 清掉確認動作，避免下一個直接打開的視窗按確認時，執行到上一個視窗的動作
+}
+// 回呼回傳 false（或 Promise<false>）代表驗證沒過：重新打開視窗，讓錯誤訊息看得到
+document.getElementById('modal-confirm').onclick=()=>{
+  const btn=document.getElementById('modal-confirm'), label=btn.textContent, cb=_mcb;
+  closeModal();
+  if(!cb) return;
+  const reopen=()=>{ btn.textContent=label; _mcb=cb; document.getElementById('modal').classList.add('show'); };
+  const r=cb();
+  if(r===false) reopen();
+  else if(r&&typeof r.then==='function') r.then(v=>{ if(v===false) reopen(); });
+};
 
 // ══ MODE ══
 // ══ FIRST-TIME SETUP ══
@@ -1717,7 +1776,7 @@ async function submitSetup(){
 // ══ LOGIN ══
 
 let _currentRole = null; // 'superadmin' | 'admin' | 'employee'
-let _currentAdminRole = null; // 'superadmin' | '負責人' | '主管' | '櫃檶' | null
+let _currentAdminRole = null; // 'superadmin' | '負責人' | '主管' | '櫃檯' | null
 let _currentEmpId = null;
 let _currentAdminUser = null;
 
@@ -1983,31 +2042,27 @@ async function loginAsAdmin(){
   // 取得管理員權限（超級管理員=superadmin, 一般管理員依 role 欄位）
   const foundAdmin=(data.admins||[]).find(a=>a.username===user);
   const adminRole=role==='superadmin'?'superadmin':(foundAdmin?.role||'主管');
-  const isCounter=adminRole==='櫃檯';
   _currentRole=role; _currentAdminUser=user; _currentEmpId=null;
   _currentAdminRole=adminRole;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('main-header').style.display='flex';
-  const roleLabel=role==='superadmin'?'超級管理員':adminRole==='負責人'?'負責人':isCounter?'櫃檯':'主管';
+  const roleLabel=role==='superadmin'?'超級管理員':adminRole;
   document.getElementById('header-user-info').textContent=`🔧 ${user}（${roleLabel}）`;
   if(window._isLocalMode) document.getElementById('local-mode-banner').style.display='block';
   document.getElementById('admin-view').style.display='block';
   document.getElementById('self-view').style.display='none';
   document.getElementById('btn-change-pin').style.display='none';
   // 權限控制：依角色與自訂 adminPermissions
-  const isManager=adminRole==='負責人';
   document.getElementById('btn-simulate-emp').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-back-to-admin').style.display='none';
   document.getElementById('btn-export-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-copy-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('btn-import-data').style.display=role==='superadmin'?'inline-block':'none';
   document.getElementById('acctab-protection').style.display=(!USE_LOCAL&&role==='superadmin')?'':'none';
+  document.getElementById('btn-change-own-pw').style.display=USE_LOCAL?'none':'inline-block';
   const _allTabs=['employees','periods','applications','lottery','schedule','history','counter','accounts'];
-  let _visibleTabs;
-  if(role==='superadmin')      _visibleTabs=new Set(_allTabs);
-  else if(isManager)           _visibleTabs=new Set(_allTabs);
-  else if(isCounter)           _visibleTabs=new Set(['schedule','history','counter']);
-  else                         _visibleTabs=new Set(['employees','periods','applications','lottery','schedule','history','counter']);
+  // 預設分頁跟「權限管理」頁面同一套（getDefaultTabs），有自訂權限時以自訂為準
+  let _visibleTabs=new Set(role==='superadmin'?_allTabs:getDefaultTabs(adminRole));
   if(role!=='superadmin'&&foundAdmin){
     const cp=(data.adminPermissions||{})[foundAdmin.id];
     if(cp) _visibleTabs=new Set(cp);
@@ -2272,6 +2327,13 @@ function onCleanerShiftChange(){
   const wrap=document.getElementById('cleaner-custom-wrap');
   if(wrap) wrap.style.display=v==='自定義'?'flex':'none';
 }
+// 屬於某假期的清潔排班：排班存檔時沒有記假期編號，所以用「日期在假期內＋店別相符」來判斷
+function _cleanerSchedsInPeriod(period){
+  if(!period) return [];
+  return (data.cleanerSchedules||[]).filter(x=>
+    (x.periodId===period.id||(x.date>=period.start&&x.date<=period.end))&&
+    (!period.storeRestrict||!x.store||x.store===period.storeRestrict));
+}
 function addCleanerSchedule(){
   const name=document.getElementById('cleaner-name').value;
   const monthVal=document.getElementById('cleaner-month')?.value||'';
@@ -2366,7 +2428,7 @@ function renderCleanerPreview(periodId, containerId){
   if(!staff.length){el.innerHTML='<div class="empty" style="padding:10px 0;font-size:.78rem;">尚未設定清潔人員</div>';return;}
   // Build schedule map: name -> date -> entry
   const schedMap={};
-  (data.cleanerSchedules||[]).filter(x=>x.periodId===periodId).forEach(x=>{
+  _cleanerSchedsInPeriod(period).forEach(x=>{
     if(!schedMap[x.name]) schedMap[x.name]={};
     schedMap[x.name][x.date]=x;
   });
@@ -2453,9 +2515,14 @@ function addEmployee(){
   save();renderEmployees();updateStats();document.getElementById('emp-name').value='';toast('✓ 員工已新增');
 }
 function removeEmployee(id){
-  data.employees=data.employees.filter(e=>e.id!==id);
-  data.applications=data.applications.filter(a=>a.empId!==id);
-  save();renderEmployees();updateStats();
+  const emp=data.employees.find(e=>e.id===id);
+  if(!emp)return;
+  const appDays=data.applications.filter(a=>a.empId===id).reduce((s,a)=>s+a.dates.length,0);
+  showModal('移除技師',`確定要移除「${emp.name}（${emp.dept}）」？${appDays?`他的 ${appDays} 天排假申請也會一併刪除，`:''}刪除後無法復原。`,()=>{
+    data.employees=data.employees.filter(e=>e.id!==id);
+    data.applications=data.applications.filter(a=>a.empId!==id);
+    save();renderEmployees();updateStats();toast(`✓ 已移除 ${emp.name}`);
+  });
 }
 let _editEmpId=null;
 function openEditEmployee(id){
@@ -2498,24 +2565,40 @@ function saveEditEmployee(){
   // check duplicate (exclude self)
   if(data.employees.find(x=>x.id!==_editEmpId&&x.name===name&&x.dept===dept))
     return toast('同班別已有此姓名',true);
-  e.name=name;
-  e.store=document.getElementById('edit-emp-store').value||'竹北店';
-  e.dept=dept;
-  e.gender=document.querySelector('input[name="edit-emp-gender"]:checked')?.value||'male';
-  e.empType=document.getElementById('edit-emp-type').value||'直';
+  const oldName=e.name, oldDept=e.dept;
+  const store=document.getElementById('edit-emp-store').value||'竹北店';
+  const gender=document.querySelector('input[name="edit-emp-gender"]:checked')?.value||'male';
+  const empType=document.getElementById('edit-emp-type').value||'直';
   const _etv=(document.getElementById('edit-emp-time').value||'').trim();
-  if(_etv){const _etp=_etv.split(/[~～]/);const _ets=parseHHMM(_etp[0]||'');const _ete=parseHHMM(_etp[1]||'');e.customStart=_ets;e.customEnd=_ete;}
-  else{e.customStart='';e.customEnd='';}
-  // 平日個別時間
-  const _wdSameCb=document.getElementById('edit-emp-weekday-same');
-  const _wdSame=_wdSameCb?.checked||false;
-  e.weekdaySame=_wdSame;
-  if(!_wdSame){
-    const _wdtv=(document.getElementById('edit-emp-weekday-time').value||'').trim();
-    if(_wdtv){const _wdp=_wdtv.split(/[~～]/);e.weekdayStart=parseHHMM(_wdp[0]||'');e.weekdayEnd=parseHHMM(_wdp[1]||'');}
+  const _wdSame=document.getElementById('edit-emp-weekday-same')?.checked||false;
+  const _wdtv=(document.getElementById('edit-emp-weekday-time').value||'').trim();
+  const apply=()=>{
+    e.name=name; e.store=store; e.dept=dept; e.gender=gender; e.empType=empType;
+    if(_etv){const _etp=_etv.split(/[~～]/);e.customStart=parseHHMM(_etp[0]||'');e.customEnd=parseHHMM(_etp[1]||'');}
+    else{e.customStart='';e.customEnd='';}
+    // 平日個別時間
+    e.weekdaySame=_wdSame;
+    if(!_wdSame&&_wdtv){const _wdp=_wdtv.split(/[~～]/);e.weekdayStart=parseHHMM(_wdp[0]||'');e.weekdayEnd=parseHHMM(_wdp[1]||'');}
     else{e.weekdayStart='';e.weekdayEnd='';}
-  } else {e.weekdayStart='';e.weekdayEnd='';}
-  save();renderEmployees();updateStats();closeEditEmployee();toast('✓ 員工資料已更新');
+    if(name!==oldName) _renameEmpRefs(e.id,oldName,name);
+    save();renderEmployees();updateStats();closeEditEmployee();
+    toast(name!==oldName?`✓ 員工資料已更新，申請與抽籤紀錄裡的「${oldName}」已同步改為「${name}」`:'✓ 員工資料已更新');
+  };
+  // 換班別：尚未結束的假期裡已送出的申請仍記在原班別，先提醒
+  const _n=new Date(), today=`${_n.getFullYear()}-${String(_n.getMonth()+1).padStart(2,'0')}-${String(_n.getDate()).padStart(2,'0')}`;
+  const openApps=dept===oldDept?[]:data.applications.filter(a=>a.empId===e.id&&a.shift===oldDept&&a.dates.length&&(data.periods.find(p=>p.id===a.periodId)?.end||'')>=today);
+  if(!openApps.length) return apply();
+  const list=openApps.map(a=>`${data.periods.find(p=>p.id===a.periodId)?.name}（${a.dates.length} 天）`).join('、');
+  showModal('更換班別',`${oldName} 在尚未結束的假期裡已經有申請：${list}。這些申請會繼續記在「${oldDept}」，佔用${oldDept}的名額，不會自動移到「${dept}」。如果要改算新班別，請改完後取消這些申請再重新申請。確定要更換班別嗎？`,apply);
+}
+// 員工改名：抽籤紀錄是用「姓名＋班別」對應員工，所以所有紀錄裡的舊名字都要一起改
+function _renameEmpRefs(empId,oldName,newName){
+  for(const k of ['applications','extraLeaves','makeupLeaves','longLeaves'])
+    (data[k]||[]).forEach(x=>{ if(x.empId===empId) x.empName=newName; });
+  // 抽籤名單：同名同班別的若是別的現職員工就不動（不同班別可以同名）
+  const mine=w=>w&&w.name===oldName&&!data.employees.some(o=>o.id!==empId&&o.name===oldName&&o.dept===w.dept);
+  (data.history||[]).forEach(h=>[h.winners,h.losers].forEach(l=>(l||[]).forEach(w=>{ if(mine(w)) w.name=newName; })));
+  (data.pendingPromotions||[]).forEach(np=>(np.losers||[]).forEach(w=>{ if(mine(w)) w.name=newName; }));
 }
 
 function clearAllEmployees(){
@@ -2766,6 +2849,8 @@ function addPeriod(){
   if(!name)return toast('請輸入假期名稱',true);
   if(!start||!end)return toast('請設定日期',true);
   if(start>end)return toast('開始日期不能晚於結束日期',true);
+  // 抽籤紀錄會用「假期名稱＋開始日期」對應假期，同名假期會讓抽籤結果混在一起
+  if(data.periods.some(p=>p.name===name))return toast('已經有同名的假期，請換一個名稱',true);
   const dates=getDates(start,end), shifts=data.departments, limits={};
   shifts.forEach(sh=>{
     limits[sh]={};
@@ -2954,6 +3039,7 @@ function updatePeriod(){
   if(!name)return toast('請輸入假期名稱',true);
   if(!start||!end)return toast('請設定日期',true);
   if(start>end)return toast('開始日期不能晚於結束日期',true);
+  if(data.periods.some(p=>p.id!==_editingPeriodId&&p.name===name))return toast('已經有同名的假期，請換一個名稱',true);
 
   const dates=getDates(start,end), shifts=data.departments, limits={};
   shifts.forEach(sh=>{
@@ -3132,7 +3218,8 @@ function renderProxyElDateGrid(){
     const now=new Date();
     const y=now.getFullYear(),m=now.getMonth();
     const first=new Date(y,m,1),last=new Date(y,m+1,0);
-    const fmt=d=>d.toISOString().slice(0,10);
+    // 用本地日期組字串；toISOString 是世界標準時間，台灣會變成前一天
+    const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     dates=getDates(fmt(first),fmt(last));
   }
   const WD_CH=['日','一','二','三','四','五','六'];
@@ -5311,7 +5398,7 @@ function exportScheduleExcel(){
     return {rows,merges,colWidths,holidayRowIdxs,cellStyleFn:empCellStyleFn,rowHeightMap:empRowHeightMap};
   }
 
-  // ── 櫃檶＋清潔工作表 ──
+  // ── 櫃檯＋清潔工作表 ──
   function buildCounterSheet(){
     const counterApps=data.counterApplications||[];
     const counterInPeriod=counterApps.filter(a=>a.date>=period.start&&a.date<=period.end);
@@ -5346,7 +5433,7 @@ function exportScheduleExcel(){
     const _clSp=s=>s==='竹北店'?'竹':s==='關新店'?'關':'';
     const _clSh=s=>s==='早班'?'早':s==='晚班'?'晚':'';
     const allCleaners=(data.cleanerStaff||[]).filter(s=>!period.storeRestrict||!s.store||s.store===period.storeRestrict);
-    const cleanerScheds=(data.cleanerSchedules||[]).filter(x=>x.periodId===pid);
+    const cleanerScheds=_cleanerSchedsInPeriod(period);
     const cleanerSchedMap={};
     cleanerScheds.forEach(x=>{if(!cleanerSchedMap[x.name])cleanerSchedMap[x.name]={};cleanerSchedMap[x.name][x.date]=x;});
     const n=counterAdmins.length;
@@ -5494,7 +5581,7 @@ function exportScheduleExcel(){
   const counterSheet=buildCounterSheet();
   if(counterSheet){
     const _ctrScale=calcBestScale(counterSheet.colWidths,counterSheet.rows.length,counterSheet.rowHeightMap,10.80);
-    sheetDefs.push({name:'櫃檶',...counterSheet,printScale:_ctrScale});
+    sheetDefs.push({name:'櫃檯',...counterSheet,printScale:_ctrScale});
   }
 
   const buf=_xlsx.writeSheets(sheetDefs);
@@ -5504,7 +5591,7 @@ function exportScheduleExcel(){
   const ts=new Date().toISOString().slice(0,10);
   a.href=url;a.download=`假表_${period.name}_${ts}.xlsx`;a.click();
   URL.revokeObjectURL(url);
-  toast('✓ Excel 已匯出（足師／體師／櫃檶 三個工作表）');
+  toast('✓ Excel 已匯出（足師／體師／櫃檯 三個工作表）');
 }
 
 // ══ 匯出出勤表 ══
@@ -5897,15 +5984,15 @@ function refreshAdminSelects(){
   const counterAdmins=(data.admins||[])
     .filter(a=>staffOrder.includes(a.id))
     .sort((a,b)=>staffOrder.indexOf(a.id)-staffOrder.indexOf(b.id));
-  // 主管/櫃檶員工（供設定班別用）
+  // 主管/櫃檯員工（供設定班別用）
   const counterEligible=[
     ...counterAdmins,
-    ...(data.admins||[]).filter(a=>!staffOrder.includes(a.id)&&(a.role==='主管'||a.role==='櫃檶'))
+    ...(data.admins||[]).filter(a=>!staffOrder.includes(a.id)&&(a.role==='主管'||a.role==='櫃檯'))
   ];
   const listMap={
     'counter-admin': counterAdmins,      // 排假：僅已設定班別
     'cso-admin':     counterAdmins,      // 特殊排班：僅已設定班別
-    'counter-staff-admin': counterEligible // 設定班別：主管/櫃檶
+    'counter-staff-admin': counterEligible // 設定班別：主管/櫃檯
   };
   Object.entries(listMap).forEach(([selId,admins])=>{
     const sel=document.getElementById(selId);
@@ -6514,7 +6601,7 @@ function onSchPeriodChange(){
   const shiftsInPeriod=data.departments.filter(sh=>data.employees.some(e=>e.dept===sh));
   document.getElementById('sch-shift-field').style.display=shiftsInPeriod.length>1?'block':'none';
   if(shiftsInPeriod.length<=1) document.getElementById('sch-shift').value=shiftsInPeriod[0]||'';
-  // 職稱：假期未限定職稱才顯示篩選（含「全部/足師/體師/櫃檶」選項）
+  // 職稱：假期未限定職稱才顯示篩選（含「全部/足師/體師/櫃檯」選項）
   const showGender=!period.genderRestrict;
   document.getElementById('sch-gender-field').style.display=showGender?'block':'none';
   if(!showGender) document.getElementById('sch-gender').value=period.genderRestrict||'';
@@ -6728,7 +6815,7 @@ function renderSchedule(){
     if(filterStore && (e.store||'竹北店')!==filterStore) return false;
     return true;
   });
-  // 櫃檯排假：全部班別或僅顯示櫃檶時顯示；指定員工班別時隱藏
+  // 櫃檯排假：全部班別或僅顯示櫃檯時顯示；指定員工班別時隱藏
   const _showCounter=!filterGender||_isCounterOnly;
   const counterApps=data.counterApplications||[];
   const counterInPeriod=_showCounter?counterApps.filter(a=>a.date>=period.start&&a.date<=period.end):[];
@@ -6738,7 +6825,7 @@ function renderSchedule(){
     const _csAdmin=(data.admins||[]).find(a=>a.id===s.adminId);
     return {id:s.adminId,name:s.nickname||s.adminName,role:_csAdmin?.role||'主管',shift:s.shift||'',store:s.store||''};
   }):[];
-  // 建立櫃檶 dateMap: adminId -> Set of dates
+  // 建立櫃檯 dateMap: adminId -> Set of dates
   const counterDateMap={};
   counterInPeriod.forEach(a=>{
     if(!counterDateMap[a.adminId]) counterDateMap[a.adminId]=new Set();
@@ -6753,7 +6840,7 @@ function renderSchedule(){
   const _periodStore=period.storeRestrict||'';
   const _cleanerList=_periodStore?_cleanerAll.filter(s=>!s.store||s.store===_periodStore):_cleanerAll;
   const _cleanerSchedMap={};
-  if(_showCleaner)(data.cleanerSchedules||[]).filter(x=>x.periodId===pid).forEach(x=>{
+  if(_showCleaner)_cleanerSchedsInPeriod(period).forEach(x=>{
     if(!_cleanerSchedMap[x.name])_cleanerSchedMap[x.name]={};
     _cleanerSchedMap[x.name][x.date]=x;
   });
@@ -7057,7 +7144,29 @@ async function renderProtection(){
         </div>
       </div>`).join(''):'<div style="color:var(--text-dim);">尚無備份</div>';
   }catch(e){ list.textContent='讀取失敗：'+fnErrMsg(e); }
-  renderSuperDevices(); renderAuditLog(); renderLoginLog();
+  renderArchivePreview(); renderSuperDevices(); renderAuditLog(); renderLoginLog();
+}
+async function renderArchivePreview(){
+  const el=document.getElementById('archive-preview');
+  try{
+    const r=await callFn('archiveNow',{dryRun:true});
+    const size=Math.round(JSON.stringify(data).length/1024);
+    el.innerHTML=`<div style="margin-bottom:6px;">目前資料大小：<b>${size} KB</b>（上限約 1000 KB）</div>`+
+      (r.oldPeriods.length
+        ?`<div style="color:var(--accent);">下次會封存（${_esc(r.cutoff)} 前結束）：${r.oldPeriods.map(_esc).join('、')}</div>`
+        :`<div style="color:var(--text-dim);">目前沒有需要封存的假期（${_esc(r.cutoff)} 前結束的才會封存）</div>`);
+  }catch(e){ el.textContent='讀取失敗：'+fnErrMsg(e); }
+}
+function archiveNow(){
+  showModal('立即封存舊資料','會把結束滿 6 個月的假期及相關紀錄從系統移除（移除前會先把完整資料寄到信箱）。確定要現在執行嗎？',async()=>{
+    showLoading('封存中…');
+    try{
+      const r=await callFn('archiveNow',{});
+      hideLoading();
+      toast(r.archived?`✓ 已封存 ${r.oldPeriods.length} 個假期，備份已寄到信箱`:'目前沒有需要封存的資料');
+    }catch(e){ hideLoading(); toast('❌ '+fnErrMsg(e),true); }
+    renderProtection();
+  });
 }
 async function renderSuperDevices(){
   const el=document.getElementById('super-device-list');
@@ -7083,6 +7192,37 @@ function removeSuperDevice(id,isMine){
       catch(e){ toast('❌ '+fnErrMsg(e),true); }
       renderSuperDevices();
     });
+}
+// 右上角「修改密碼」：超級管理員用同一個視窗（會寄信、移除其他信任裝置），管理員改自己的密碼
+function changeOwnPassword(){
+  if(_currentRole==='superadmin') return changeSuperPassword();
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9500;display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.innerHTML=`<div class="card" style="width:100%;max-width:380px;">
+    <div class="section-title">修改我的密碼</div>
+    <div class="field"><label>目前密碼</label><input type="password" id="op-old" style="width:100%;"></div>
+    <div class="field"><label>新密碼</label><input type="password" id="op-new" style="width:100%;"></div>
+    <div class="field"><label>確認新密碼</label><input type="password" id="op-new2" style="width:100%;"></div>
+    <div id="op-err" style="display:none;font-size:.76rem;color:var(--red);margin-bottom:8px;"></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-primary" id="op-ok" style="flex:1;">確認修改</button>
+      <button class="btn btn-ghost" id="op-cancel">取消</button>
+    </div></div>`;
+  document.body.appendChild(ov);
+  const $=id=>ov.querySelector('#'+id), fail=m=>{ $('op-err').textContent=m; $('op-err').style.display='block'; };
+  $('op-cancel').onclick=()=>ov.remove();
+  $('op-ok').onclick=async()=>{
+    const o=$('op-old').value, n=$('op-new').value.trim(), n2=$('op-new2').value.trim();
+    if(!o) return fail('請輸入目前密碼');
+    if(!n) return fail('請輸入新密碼');
+    if(n!==n2) return fail('兩次輸入的新密碼不一致');
+    $('op-ok').disabled=true;
+    try{
+      await callFn('changeOwnAdminPassword',{oldPassword:o,newPassword:n});
+      ov.remove(); toast('✓ 密碼已修改，請用新密碼重新登入'); setTimeout(logout,2500);
+    }catch(e){ $('op-ok').disabled=false; fail(fnErrMsg(e)); }
+  };
+  setTimeout(()=>$('op-old').focus(),50);
 }
 function changeSuperPassword(){
   const ov=document.createElement('div');
@@ -7337,7 +7477,7 @@ async function addAdmin(){
   const role=document.getElementById('new-admin-role').value||'主管';
   const newAdmin={id:`${Date.now()}`,username:user,role};
   if(USE_LOCAL) newAdmin.password=await hashPw(pw);
-  // 角色排序：負責人 > 主管 > 櫃檶，插入到相同角色群組最後一個之後
+  // 角色排序：負責人 > 主管 > 櫃檯，插入到相同角色群組最後一個之後
   const _aRoleOrder=r=>r==='負責人'?0:r==='主管'?1:r==='清潔'?3:2;
   const newOrder=_aRoleOrder(role);
   let insertIdx=data.admins.length;
@@ -7355,7 +7495,7 @@ async function addAdmin(){
     // 先存帳號（伺服器要看得到這個管理員），再請伺服器設定密碼；失敗就把帳號拿掉
     showLoading('建立帳號中…');
     try{
-      await DATA_REF.set(_cloudData());
+      if(await save()===false) throw new Error('儲存失敗，請重新整理後再試');
       await callFn('setAdminPassword',{adminId:newAdmin.id,password:pw});
       hideLoading();
     }catch(e){
@@ -7567,7 +7707,7 @@ function triggerImport(){
 function showPasteImport(){
   document.getElementById('modal-title').textContent='貼上資料匯入';
   document.getElementById('modal-msg').innerHTML=`
-    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:8px;">將複製的資料貼入下方，然後按「確認匯入」：</div>
+    <div style="font-size:.8rem;color:var(--text-dim);margin-bottom:8px;">將複製的資料貼入下方，然後按「確認匯入」。<span style="color:var(--red);">目前所有資料將被覆蓋。</span></div>
     <textarea id="paste-import-input" placeholder="貼上資料..." style="width:100%;height:120px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:var(--radius);padding:8px;font-size:.72rem;font-family:'Space Mono',monospace;resize:vertical;outline:none;"></textarea>
     <div id="paste-import-err" style="display:none;font-size:.74rem;color:var(--red);margin-top:6px;"></div>`;
   document.getElementById('modal-confirm').textContent='確認匯入';
@@ -7583,6 +7723,7 @@ function showPasteImport(){
         err.textContent='格式不正確，請確認資料來源';err.style.display='block';return false;
       }
       data=migrateData(imported);save();_migratePasswordsWithToast();
+      const _aw=_archiveWarning(imported); if(_aw) setTimeout(()=>showModal('提醒',_aw.trim(),null),300);
       renderDeptOptions();renderDeptList();renderEmployees();updateStats();
       if(document.getElementById('panel-applications').classList.contains('active')){refreshAppSelects();renderApplications();}
       if(document.getElementById('panel-schedule').classList.contains('active'))initSchedule();
@@ -7591,6 +7732,15 @@ function showPasteImport(){
       toast('✓ 資料已成功匯入');
     }catch(e){err.textContent='無法解析資料，格式有誤';err.style.display='block';return false;}
   };
+}
+// 匯入的資料裡已結束滿 6 個月的假期（正式網站每天 04:00 會自動封存；月數要跟 functions/.env 的 ARCHIVE_MONTHS 一致）
+const ARCHIVE_MONTHS_UI=6;
+function _archiveWarning(imported){
+  if(USE_LOCAL) return '';
+  const d=new Date(); d.setMonth(d.getMonth()-ARCHIVE_MONTHS_UI);
+  const cutoff=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const old=(imported.periods||[]).filter(p=>p.end&&p.end<cutoff);
+  return old.length?`\n\n⚠ 其中有 ${old.length} 個假期已結束滿 ${ARCHIVE_MONTHS_UI} 個月（${old.map(p=>p.name).join('、')}），會在明天 04:00 自動封存（寄備份到信箱後從系統移除）。如果只是想查看舊資料，請改用本機測試模式。`:'';
 }
 function importData(event){
   const file=event.target.files[0];
@@ -7602,7 +7752,7 @@ function importData(event){
       // 基本驗證
       if(!Array.isArray(imported.employees)||!Array.isArray(imported.periods))
         return toast('❌ 檔案格式不正確',true);
-      showModal('確認匯入',`確定要匯入「${file.name}」？目前所有資料將被覆蓋。`,()=>{
+      showModal('確認匯入',`確定要匯入「${file.name}」？目前所有資料將被覆蓋。${_archiveWarning(imported)}`,()=>{
         data=migrateData(imported);
         save();_migratePasswordsWithToast();
         // 重新渲染目前畫面

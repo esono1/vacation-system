@@ -32,7 +32,9 @@
    - 沒同步的後果：新功能的正常操作會被誤判成可疑、寄誤報信給使用者
 2. **改了 `index.html` 的 `migrateData`（載入時自動補預設值）→ 同步 `audit.js` 的 `normalize`**，否則網頁的自動修正會被當成使用者修改
 3. **新增 Cloud Functions 的對外功能（onCall）→ 一律用 `publicCall` 包起來**，才會被流量計數、鎖定與熔斷保護
-4. **新增資料欄位或集合 → 檢查 `firestore.rules`**：預設全部拒絕，只開放真正需要的
+4. **新增資料欄位或集合 → 檢查 `firestore.rules`**：預設全部拒絕，只開放真正需要的；新的資料清單（例如新的排班）要加進 `protection.js` 的 `splitForArchive` 封存規則，否則舊資料永遠不會被封存
+4-0. **改封存月數時兩邊都要改**：`functions/.env` 的 `ARCHIVE_MONTHS`（實際封存）與 `index.html` 的 `ARCHIVE_MONTHS_UI`（匯入時的提醒）
+4-1. **伺服器端要改 `system/data` 時，一律在交易裡用 `nextVersion` 升版本號**（`_v` 與 `system/meta`），否則開著舊畫面的人存檔會把伺服器的修改蓋掉；網頁端存檔一律走 `save()`，不要直接寫 `DATA_REF`
 5. **語法檢查**：`index.html` 的 `<script>` 抽出來 `node --check`；functions 用 `node -e "require('./index.js')"`
 6. **測試順序**：本地模式 → 測試專案（`?env=test`，真實連線）→ 才部署正式專案
 7. **部署正式專案時**：`index.html` 上傳 GitHub 與 `firestore.rules` 部署要同一時段做（挑沒人用的時間）
@@ -45,7 +47,8 @@
 - 付款帳戶解除後重新連結，服務要 15～30 分鐘才完全恢復。
 - 安全規則部署後約 1 分鐘才生效；新 Firestore 索引建立要幾分鐘。
 - 第一次部署 Firestore 觸發的功能常因權限還沒生效失敗，等 1～2 分鐘重試即可。
-- **新專案第一次部署常大量建置失敗**，重試時才建立成功的 callable 會漏設「公開呼叫」權限（網頁呼叫得到 403，更新部署也補不回來）。解法：`firebase functions:delete <名稱們> --region asia-east1` 後重新部署。驗證：直接 POST 功能網址，未帶資料時應回 200／400／403（程式的錯誤訊息），不應是空白的 403。
+- **新專案第一次部署常大量建置失敗**，重試時才建立成功的 callable 會漏設「公開呼叫」權限（網頁呼叫得到 403，更新部署也補不回來）。解法：`firebase functions:delete <名稱們> --region asia-east1` 後重新部署。
+- **驗證功能能不能被呼叫，要用 `curl.exe`**（`curl.exe -s -X POST -H "Content-Type: application/json" -d '{\"data\":{}}' <網址>`）：回應內容有 `"error"` 或 `"result"` 就是程式有在運作（例如「請先登入」的 401/403 是正常的）；只有「空白內容的 403」才是沒開放呼叫。**不要用 PowerShell 的 Invoke-WebRequest 判斷**，它讀不到錯誤回應的內容，會把正常的權限錯誤誤判成被擋（2026-09-25 誤判過一次）。
 - 部署失敗留下的殘留版本可能類型錯誤（例如 `budgetGuard` 被當成 HTTPS 功能），要先刪除再部署。
 - Claude 桌面版有獨立的程式空間：在這裡 `npm install -g` 的工具，使用者自己的命令提示字元看不到。需要使用者輸入的設定（密碼等）改用 Google Cloud 網頁操作。
 - 登入伺服器簽發通行證需要 compute 服務帳戶有「服務帳戶憑證建立者」角色＋IAM Credentials API；費用熔斷需要「專案帳單管理員」＋Cloud Billing API。

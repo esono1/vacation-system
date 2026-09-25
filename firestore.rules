@@ -19,6 +19,10 @@ service cloud.firestore {
     match /system/data {
       allow read, write: if canUse();
     }
+    // 資料版本號：網頁存檔時在同一筆交易裡比對並加 1，避免兩人同時編輯互相覆蓋
+    match /system/meta {
+      allow read, write: if canUse();
+    }
     match /system/pinStatus {
       allow read: if canUse();
     }

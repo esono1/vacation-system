@@ -68,6 +68,13 @@ firebase deploy --only "functions,firestore:rules" --project test
 - 費用熔斷需要：`專案編號-compute@developer.gserviceaccount.com` 加上「專案帳單管理員」角色、啟用 Cloud Billing API、預算連結 Pub/Sub 主題 `budget-alerts`。
 - 測試專案的設定在 `functions/.env.vacation-system-test`。
 
+## 其他資料保護
+
+- **同時編輯保護**：`system/meta` 存資料版本號，網頁存檔時在同一筆交易裡比對；有人先存過就拒絕這次存檔、載入最新資料並提示重新操作（不會悄悄蓋掉別人的修改）。
+- **舊資料封存**：每天 04:00 檢查，結束滿 `ARCHIVE_MONTHS`（6）個月的假期 → 先寄完整備份到信箱 → 連同相關申請／抽籤／補假／額外假／長假／櫃檯與清潔排班一起移除（避免資料超過 1 MB 上限）。「系統保護」可預覽與手動執行；匯入含舊假期的資料時會提醒。
+- **備份信不重複**：每週備份資料沒變就不寄；其他通知信資料沒變就不附檔（`mailState/lastBackup` 記錄上次寄出的雜湊）。
+- **管理員自己改密碼**：右上角「🔑 修改密碼」，要輸入目前密碼，改完需重新登入。
+
 ## 稽核日誌（`functions/audit.js`）
 
 - **操作紀錄**：`system/data` 每次被修改，伺服器端觸發 `auditDataWrite`，比對修改前後，記錄「誰、何時、改了什麼」到 `audit`。

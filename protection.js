@@ -20,6 +20,14 @@ const db = admin.firestore();
 const FieldValue = admin.firestore.FieldValue;
 const DATA = db.doc('system/data');
 const LOCK = db.doc('system/lock');
+const META = db.doc('system/meta'); // {v} 資料版本號，網頁存檔前比對，避免同時編輯互相覆蓋
+
+// 伺服器改 system/data 也要跟網頁一樣升版本號，否則開著舊畫面的人存檔會把伺服器的修改蓋掉
+// 用法：在交易裡先 const v = await nextVersion(tx)（讀取要在寫入前），寫入時資料帶 _v: v，再 tx.set(META, { v })
+async function nextVersion(tx) {
+  const m = await tx.get(META);
+  return (m.exists ? (m.data().v || 0) : 0) + 1;
+}
 
 // 寄信用：Gmail 帳號寫在 functions/.env 的 BACKUP_EMAIL，應用程式密碼存在 Secret Manager
 const GMAIL_APP_PASSWORD = defineSecret('GMAIL_APP_PASSWORD');
@@ -137,23 +145,43 @@ async function backupJson(id) {
 }
 
 // ══ 寄信 ══
-async function queueMail(subject, text, backupId) {
-  await db.collection('mail').add({ subject, text, backupId: backupId || null, at: twStamp() });
+// 同樣的資料不重複寄：記住上次寄出的備份內容雜湊（mailState/lastBackup）
+// 每週備份（kind: 'weekly'）資料沒變就整封不寄；其他通知信照寄，但資料沒變就不附檔
+const LAST_SENT = db.doc('mailState/lastBackup');
+const stableJson = v => JSON.stringify(v, (k, x) => (x && typeof x === 'object' && !Array.isArray(x))
+  ? Object.keys(x).sort().reduce((o, kk) => { o[kk] = x[kk]; return o; }, {}) : x);
+function backupHash(json) {
+  const { _v, ...d } = JSON.parse(json); // 版本號不算內容
+  return require('crypto').createHash('sha256').update(stableJson(d)).digest('hex');
 }
-async function sendMail(subject, text, backupId) {
+async function queueMail(subject, text, backupId, kind) {
+  await db.collection('mail').add({ subject, text, backupId: backupId || null, kind: kind || null, at: twStamp() });
+}
+async function sendMail(subject, text, backupId, kind) {
   const user = BACKUP_EMAIL.value();
   if (!user) { logger.warn('BACKUP_EMAIL 未設定，略過寄信：', subject); return; }
+  let attachments = [], hash = null;
+  if (backupId) {
+    const json = await backupJson(backupId);
+    hash = backupHash(json);
+    const last = await LAST_SENT.get();
+    if (last.exists && last.data().hash === hash) {
+      if (kind === 'weekly') { logger.info('資料與上次寄出的備份相同，略過每週備份信'); return 'skipped'; }
+      text += `\n\n（資料與 ${last.data().at} 寄出的備份完全相同，這次不附檔，需要時請用那封信的附件。）`;
+      hash = null;
+    } else {
+      attachments = [{ filename: `vacLottery_backup_${backupId}.json`, content: json, contentType: 'application/json' }];
+    }
+  }
   const nodemailer = require('nodemailer');
   const t = nodemailer.createTransport({ service: 'gmail', auth: { user, pass: GMAIL_APP_PASSWORD.value() } });
-  const attachments = backupId
-    ? [{ filename: `vacLottery_backup_${backupId}.json`, content: await backupJson(backupId), contentType: 'application/json' }]
-    : [];
   await t.sendMail({ from: `假期抽籤系統 <${user}>`, to: user, subject, text, attachments });
+  if (hash) await LAST_SENT.set({ hash, at: twStamp(), backupId });
 }
 exports.sendQueuedMail = onDocumentCreated({ document: 'mail/{id}', secrets: [GMAIL_APP_PASSWORD] }, async event => {
   const m = event.data.data();
   try {
-    await sendMail(m.subject, m.text, m.backupId);
+    await sendMail(m.subject, m.text, m.backupId, m.kind);
     await event.data.ref.delete();
   } catch (e) {
     logger.error('Send mail failed:', e);
@@ -161,12 +189,76 @@ exports.sendQueuedMail = onDocumentCreated({ document: 'mail/{id}', secrets: [GM
   }
 });
 
+// ══ 舊資料封存：假期結束滿 ARCHIVE_MONTHS 個月 → 先備份寄信，再從資料移除（避免資料超過 1 MB 上限）══
+const ARCHIVE_MONTHS = defineInt('ARCHIVE_MONTHS', { default: 6 });
+function archiveCutoff() {
+  const d = twNow(); d.setUTCMonth(d.getUTCMonth() - ARCHIVE_MONTHS.value());
+  return d.toISOString().slice(0, 10);
+}
+// 回傳移除舊資料後的內容與統計；cutoff 之前結束的假期，以及日期在 cutoff 之前、又不屬於任何保留假期的紀錄
+function splitForArchive(d, cutoff) {
+  const periods = d.periods || [];
+  const old = periods.filter(p => p.end && p.end < cutoff);
+  const kept = periods.filter(p => !(p.end && p.end < cutoff));
+  const oldIds = new Set(old.map(p => String(p.id)));
+  const oldKeys = new Set(old.map(p => `${p.name}|${p.start}`));
+  const inKept = x => kept.some(p => String(p.id) === String(x.periodId) || (x.periodName === p.name && x.periodStart === p.start));
+  const byPeriod = x => oldIds.has(String(x.periodId)) || oldKeys.has(`${x.periodName}|${x.periodStart}`);
+  const dropped = {};
+  const out = { ...d, periods: kept };
+  const rule = {
+    applications: x => oldIds.has(String(x.periodId)),
+    history: x => byPeriod(x) || (!inKept(x) && x.date < cutoff),
+    makeupLeaves: x => byPeriod(x) || (!inKept(x) && x.date < cutoff),
+    extraLeaves: x => byPeriod(x) || x.date < cutoff,
+    longLeaves: x => (x.endDate || '') < cutoff,
+    counterApplications: x => x.date < cutoff,
+    counterShiftOverrides: x => x.date < cutoff,
+    cleanerSchedules: x => x.date < cutoff,
+    publishedSchedules: x => byPeriod(x) || (x.periodEnd || '') < cutoff,
+    pendingPromotions: x => byPeriod(x) || (x.date || '') < cutoff,
+  };
+  for (const [k, drop] of Object.entries(rule)) {
+    const arr = d[k] || [];
+    out[k] = arr.filter(x => !drop(x));
+    if (arr.length !== out[k].length) dropped[k] = arr.length - out[k].length;
+  }
+  return { out, oldPeriods: old.map(p => `${p.name}（${p.start}～${p.end}）`), dropped };
+}
+async function archiveOld({ dryRun } = {}) {
+  const cutoff = archiveCutoff();
+  const snap = await DATA.get();
+  if (!snap.exists) return { cutoff, oldPeriods: [], dropped: {} };
+  const preview = splitForArchive(snap.data(), cutoff);
+  const total = Object.values(preview.dropped).reduce((s, n) => s + n, 0);
+  if (dryRun || (!preview.oldPeriods.length && !total)) return { cutoff, oldPeriods: preview.oldPeriods, dropped: preview.dropped, archived: false };
+  const id = await makeBackup('archive'); // 移除前的完整資料
+  await db.runTransaction(async tx => {
+    const cur = (await tx.get(DATA)).data();
+    const v = await nextVersion(tx);
+    tx.set(DATA, { ...splitForArchive(cur, cutoff).out, _v: v });
+    tx.set(META, { v });
+  });
+  const label = { applications: '排假申請', history: '抽籤紀錄', makeupLeaves: '補假', extraLeaves: '額外假', longLeaves: '長假',
+    counterApplications: '櫃檯排休', counterShiftOverrides: '櫃檯班別調整', cleanerSchedules: '清潔排班', publishedSchedules: '已發布假表', pendingPromotions: '補籤資訊' };
+  await queueMail(`📦 假期抽籤系統：已封存 ${preview.oldPeriods.length} 個舊假期`,
+    `以下在 ${cutoff} 之前結束的假期（結束滿 ${ARCHIVE_MONTHS.value()} 個月）已從系統移除：\n${preview.oldPeriods.map(s => '・' + s).join('\n') || '（無，只清除過期的紀錄）'}\n\n` +
+    `一併移除的紀錄：\n${Object.entries(preview.dropped).map(([k, n]) => `・${label[k] || k}：${n} 筆`).join('\n')}\n\n` +
+    `附件是移除「前」的完整資料，請保存這封信。需要查看舊資料時，可以用超級管理員「📂 匯入資料」暫時匯入到本機測試模式查看；` +
+    `不要匯入到正式網站，否則會覆蓋目前的資料。`, id);
+  return { cutoff, oldPeriods: preview.oldPeriods, dropped: preview.dropped, archived: true };
+}
+exports.archiveNow = publicCall(async req => {
+  requireSuper(req);
+  return archiveOld({ dryRun: !!(req.data || {}).dryRun });
+});
+
 // ══ 每日備份（台灣時間 04:00），每週一另外寄到信箱，順便清掉一週前的流量紀錄 ══
 exports.dailyBackup = onSchedule({ schedule: '0 4 * * *', timeZone: 'Asia/Taipei' }, async () => {
   const id = await makeBackup('daily');
   if (id && twNow().getUTCDay() === 1) {
     await queueMail(`假期抽籤系統 每週備份 ${twStamp().slice(0, 10)}`,
-      '附件是系統的完整資料備份（不含任何密碼）。\n還原方式：超級管理員登入 →「📂 匯入資料」選這個檔案。', id);
+      '附件是系統的完整資料備份（不含任何密碼）。\n還原方式：超級管理員登入 →「📂 匯入資料」選這個檔案。\n（資料跟上次寄出的備份一樣時，這封信會自動略過不寄。）', id, 'weekly');
   }
   // 前一天總呼叫次數（每小時都沒超標、但整天累積很多的情況）
   const y = twNow(); y.setUTCDate(y.getUTCDate() - 1);
@@ -183,6 +275,7 @@ exports.dailyBackup = onSchedule({ schedule: '0 4 * * *', timeZone: 'Asia/Taipei
   }
 
   await require('./audit').pruneOld(); // 稽核／登入紀錄保留 90 天
+  await archiveOld(); // 封存結束滿 6 個月的假期
 
   const old = twNow(); old.setUTCDate(old.getUTCDate() - 7);
   const oldKey = old.toISOString().slice(0, 13).replace(/[-T]/g, '');
@@ -268,8 +361,14 @@ exports.restoreBackup = publicCall(async req => {
   requireSuper(req);
   const json = await backupJson((req.data || {}).id);
   const before = await makeBackup('before-restore'); // 還原前先備份目前狀態，還原錯了還能救回來
-  await DATA.set(JSON.parse(json));
+  const restored = JSON.parse(json);
+  await db.runTransaction(async tx => {
+    const v = await nextVersion(tx);
+    tx.set(DATA, { ...restored, _v: v });
+    tx.set(META, { v });
+  });
   return { ok: true, before };
 });
 
-module.exports.helpers = { publicCall, getLock, assertNotLocked, requireSuper, queueMail, twNow, twStamp };
+module.exports.helpers = { publicCall, getLock, assertNotLocked, requireSuper, queueMail, sendMailNow: sendMail, twNow, twStamp,
+  nextVersion, META, splitForArchive };
